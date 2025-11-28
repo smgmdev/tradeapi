@@ -3,27 +3,38 @@ import fs from "fs";
 import path from "path";
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(__dirname, "public");
-  const altDistPath = path.resolve(process.cwd(), "dist", "public");
+  // Try multiple possible paths for the public directory
+  const possiblePaths = [
+    path.resolve(__dirname, "public"),
+    path.resolve(process.cwd(), "dist", "public"),
+    path.join(__dirname, "..", "dist", "public"),
+  ];
   
-  const publicPath = fs.existsSync(distPath) ? distPath : altDistPath;
-  
-  if (!fs.existsSync(publicPath)) {
-    console.error(`Could not find public directory at: ${publicPath}`);
-    console.error(`Current working directory: ${process.cwd()}`);
-    console.error(`__dirname: ${__dirname}`);
-    // Fallback: don't throw, just don't serve static files
-    return;
-  }
-
-  app.use(express.static(publicPath));
-
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    try {
-      res.sendFile(path.resolve(publicPath, "index.html"));
-    } catch (e) {
-      res.status(404).json({ error: "Not found" });
+  let publicPath = null;
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      publicPath = p;
+      console.log(`[Static] Found public directory at: ${publicPath}`);
+      break;
     }
-  });
+  }
+  
+  if (!publicPath) {
+    console.warn(`[Static] Could not find public directory in any location`);
+    console.warn(`[Static] Checked: ${possiblePaths.join(", ")}`);
+    console.warn(`[Static] CWD: ${process.cwd()}, __dirname: ${__dirname}`);
+  } else {
+    app.use(express.static(publicPath));
+    
+    // Serve index.html for all routes (SPA fallback)
+    app.use("*", (_req, res) => {
+      const indexPath = path.resolve(publicPath!, "index.html");
+      if (fs.existsSync(indexPath)) {
+        res.set("Content-Type", "text/html");
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).json({ error: "index.html not found" });
+      }
+    });
+  }
 }

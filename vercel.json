@@ -1,4 +1,8 @@
 {
   "buildCommand": "npm run build",
-  "startCommand": "npm start"
+  "startCommand": "NODE_ENV=production node dist/index.cjs",
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "regions": ["iad1"]
 }
