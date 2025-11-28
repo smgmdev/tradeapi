@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 
 export function useBinancePrice() {
-  const [price, setPrice] = useState(34284.52);
+  const [price, setPrice] = useState<number | null>(null);
   const [connected, setConnected] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
 
   useEffect(() => {
@@ -24,8 +26,20 @@ export function useBinancePrice() {
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            setPrice(parseFloat(data.price));
-            setLastUpdate(Date.now());
+            if (data.loading) {
+              setLoading(true);
+              setError(data.message);
+              setPrice(null);
+            } else if (data.error) {
+              setError(data.message);
+              setPrice(null);
+              setLoading(false);
+            } else if (data.price) {
+              setPrice(parseFloat(data.price));
+              setLoading(false);
+              setError(null);
+              setLastUpdate(Date.now());
+            }
           } catch (e) {
             console.error("Failed to parse price message:", e);
           }
@@ -55,5 +69,5 @@ export function useBinancePrice() {
     };
   }, []);
 
-  return { price, connected, lastUpdate };
+  return { price, connected, loading, error, lastUpdate };
 }

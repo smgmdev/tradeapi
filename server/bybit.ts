@@ -36,76 +36,66 @@ export class BybitManager {
   }
 
   private async startPublicPriceStream() {
-    let isConnected = false;
-    let priceVariance = 0;
-    let basePrice = 90000; // Real current BTC price
-    let consecutiveErrors = 0;
-
     setInterval(async () => {
       try {
-        // If authenticated client is available, use it for REAL price
-        if (this.client && isConnected) {
-          try {
-            const ticker = await this.client.getTickers({
-              category: "linear",
-              symbol: "BTCUSDT",
-            });
-
-            if (ticker.result?.list?.[0]) {
-              const data = ticker.result.list[0];
-              this.currentPrice = parseFloat(data.lastPrice);
-              basePrice = this.currentPrice;
-              consecutiveErrors = 0;
-
-              this.priceSubscribers.forEach((ws) => {
-                if (ws.readyState === WebSocket.OPEN) {
-                  ws.send(JSON.stringify({
-                    symbol: "BTCUSDT",
-                    price: this.currentPrice,
-                    bid: parseFloat(data.bid1Price),
-                    ask: parseFloat(data.ask1Price),
-                    volume24h: parseFloat(data.turnover24h || "0"),
-                    percentChange: parseFloat(data.price24hPcnt || "0") * 100,
-                    timestamp: Date.now(),
-                  }));
-                }
-              });
-              return;
+        // ONLY stream REAL data from authenticated client
+        if (!this.client) {
+          // No data - waiting for API key connection
+          this.priceSubscribers.forEach((ws) => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({
+                symbol: "BTCUSDT",
+                loading: true,
+                message: "Waiting for API key connection",
+                timestamp: Date.now(),
+              }));
             }
-          } catch (e) {
-            consecutiveErrors++;
-          }
+          });
+          return;
         }
 
-        // Realistic price movement with market-like behavior around $90k
-        const volatility = (Math.random() - 0.5) * 15; // Realistic tick size
-        priceVariance += volatility;
-        priceVariance = Math.max(-500, Math.min(500, priceVariance)); // Larger range for realism
-        
-        const realisticPrice = basePrice + priceVariance;
-        this.currentPrice = realisticPrice;
+        try {
+          const ticker = await this.client.getTickers({
+            category: "linear",
+            symbol: "BTCUSDT",
+          });
 
-        this.priceSubscribers.forEach((ws) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-              symbol: "BTCUSDT",
-              price: parseFloat(realisticPrice.toFixed(2)),
-              bid: parseFloat((realisticPrice - 1).toFixed(2)),
-              ask: parseFloat((realisticPrice + 1).toFixed(2)),
-              volume24h: 2500000 + Math.random() * 500000,
-              percentChange: (priceVariance / basePrice) * 100,
-              timestamp: Date.now(),
-            }));
+          if (ticker.result?.list?.[0]) {
+            const data = ticker.result.list[0];
+            this.currentPrice = parseFloat(data.lastPrice);
+
+            this.priceSubscribers.forEach((ws) => {
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                  symbol: "BTCUSDT",
+                  price: this.currentPrice,
+                  bid: parseFloat(data.bid1Price),
+                  ask: parseFloat(data.ask1Price),
+                  volume24h: parseFloat(data.turnover24h || "0"),
+                  percentChange: parseFloat(data.price24hPcnt || "0") * 100,
+                  timestamp: Date.now(),
+                }));
+              }
+            });
           }
-        });
+        } catch (error: any) {
+          console.error("[Bybit] Failed to fetch real ticker:", error.message);
+          // Send error state - no mock data
+          this.priceSubscribers.forEach((ws) => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({
+                symbol: "BTCUSDT",
+                error: true,
+                message: "Unable to fetch price data",
+                timestamp: Date.now(),
+              }));
+            }
+          });
+        }
       } catch (error: any) {
         console.error("[Bybit] Stream error:", error.message);
       }
     }, 1000);
-
-    setInterval(() => {
-      isConnected = !!this.client && consecutiveErrors < 3;
-    }, 2000);
   }
 
   async connect(apiKey: string, apiSecret: string) {

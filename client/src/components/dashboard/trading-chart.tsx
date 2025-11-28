@@ -12,15 +12,15 @@ export function TradingChart() {
   const [currentPrice, setCurrentPrice] = useState(34284.52);
   const [priceChange, setPriceChange] = useState(0);
   const [timeframe, setTimeframe] = useState<Timeframe>("1s");
-  const { price: binancePrice, connected: binanceConnected } = useBinancePrice();
+  const { price: binancePrice, connected: binanceConnected, loading, error } = useBinancePrice();
 
-  // Use Binance real price when connected
+  // Use real price when connected
   useEffect(() => {
-    if (binanceConnected && binancePrice) {
+    if (binancePrice) {
       setCurrentPrice(binancePrice);
-      setPriceChange(binancePrice - 34284.52);
+      setPriceChange(0);
     }
-  }, [binancePrice, binanceConnected]);
+  }, [binancePrice]);
 
   const generateChartData = (tf: Timeframe) => {
     const intervals: Record<Timeframe, number> = {
