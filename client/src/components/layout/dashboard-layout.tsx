@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Settings, Activity, Shield, Zap, Menu, X, Bell } from "lucide-react";
+import { LayoutDashboard, Settings, Activity, Shield, Zap, Menu, X, Bell, Terminal, BarChart2, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -9,116 +9,101 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navItems = [
-    { icon: LayoutDashboard, label: "Terminal", href: "/" },
-    { icon: Activity, label: "Analytics", href: "/analytics" },
-    { icon: Shield, label: "Risk Management", href: "/risk" },
-    { icon: Settings, label: "Settings", href: "/settings" },
+    { icon: Terminal, label: "TERMINAL", href: "/" },
+    { icon: BarChart2, label: "MARKETS", href: "/analytics" },
+    { icon: Shield, label: "RISK MGMT", href: "/risk" },
+    { icon: Database, label: "DATA FEED", href: "/data" },
+    { icon: Settings, label: "CONFIG", href: "/settings" },
   ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans overflow-hidden flex relative">
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside className={cn(
-        "fixed lg:static inset-y-0 left-0 z-50 w-64 glass-panel border-r border-white/5 flex flex-col transition-transform duration-300 lg:transform-none",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        <div className="p-6 flex items-center gap-3 border-b border-white/5">
-          <div className="w-10 h-10 rounded-lg bg-primary/20 border border-primary/50 flex items-center justify-center">
-            <Zap className="w-6 h-6 text-primary animate-pulse" />
+    <div className="min-h-screen bg-background text-foreground font-sans overflow-hidden flex flex-col relative">
+      {/* Top Navigation Bar (Bloomberg Style) */}
+      <header className="h-10 bg-black border-b border-white/20 flex items-center justify-between px-4 z-50 shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-primary flex items-center justify-center rounded-sm">
+              <Zap className="w-4 h-4 text-black fill-current" />
+            </div>
+            <span className="font-mono font-bold tracking-wider text-primary">NEXUS<span className="text-white">TERMINAL</span></span>
           </div>
-          <div>
-            <h1 className="font-bold text-xl tracking-wider">NEXUS<span className="text-primary">AI</span></h1>
-            <p className="text-xs text-muted-foreground font-mono">v2.4.0-BETA</p>
+          
+          <div className="h-4 w-px bg-white/20 mx-2" />
+          
+          <div className="hidden md:flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+             <span className="text-green-500">SYS: ONLINE</span>
+             <span className="mx-2">|</span>
+             <span className="text-primary">LATENCY: 12ms</span>
+             <span className="mx-2">|</span>
+             <span>API: BINANCE_FUTURES</span>
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
-          {navItems.map((item) => (
-            <Link key={item.href} href={item.href}>
-              <div className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-md transition-all duration-200 cursor-pointer group",
-                location === item.href 
-                  ? "bg-primary/10 border border-primary/20 text-primary neon-text" 
-                  : "hover:bg-white/5 text-muted-foreground hover:text-foreground"
-              )}>
-                <item.icon className={cn("w-5 h-5", location === item.href && "animate-pulse")} />
-                <span className="font-medium tracking-wide">{item.label}</span>
-                {location === item.href && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)]" />
-                )}
-              </div>
-            </Link>
-          ))}
-        </nav>
-
-        <div className="p-4 border-t border-white/5">
-          <div className="p-4 rounded-lg bg-secondary/5 border border-secondary/20">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-xs font-mono text-green-500">SYSTEM ONLINE</span>
+        <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-6 border-r border-white/20 pr-6 mr-2">
+            <div className="flex items-center gap-2 font-mono text-xs">
+              <span className="text-muted-foreground">NAV</span>
+              <span className="text-foreground font-bold">$4,284.52</span>
             </div>
-            <div className="flex justify-between text-xs text-muted-foreground font-mono">
-              <span>Latency</span>
-              <span className="text-foreground">24ms</span>
-            </div>
-            <div className="flex justify-between text-xs text-muted-foreground font-mono mt-1">
-              <span>API</span>
-              <span className="text-foreground">CONNECTED</span>
+            <div className="flex items-center gap-2 font-mono text-xs">
+              <span className="text-muted-foreground">D/PNL</span>
+              <span className="text-green-500 font-bold">+$124.80</span>
             </div>
           </div>
-        </div>
-      </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
-        {/* Background Grid */}
-        <div className="absolute inset-0 grid-bg opacity-20 pointer-events-none z-0" />
-        
-        {/* Top Header */}
-        <header className="h-16 border-b border-white/5 bg-background/50 backdrop-blur-sm flex items-center justify-between px-6 z-10">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="lg:hidden text-muted-foreground"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="w-6 h-6" />
-          </Button>
-
-          <div className="flex items-center gap-4 ml-auto">
-            <div className="hidden md:flex items-center gap-6 mr-4">
-              <div className="flex flex-col items-end">
-                <span className="text-xs text-muted-foreground font-mono">TOTAL BALANCE</span>
-                <span className="font-mono font-bold text-lg text-foreground">$4,284.52</span>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="text-xs text-muted-foreground font-mono">PNL (24H)</span>
-                <span className="font-mono font-bold text-green-500">+$124.80 (2.9%)</span>
-              </div>
-            </div>
-            
-            <Button variant="outline" size="icon" className="rounded-full border-white/10 hover:bg-white/5 hover:text-primary relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-destructive rounded-full shadow-[0_0_8px_var(--color-destructive)]" />
-            </Button>
-            
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary border border-white/20" />
+          <div className="text-[10px] font-mono text-muted-foreground">
+            {new Date().toLocaleTimeString()}
           </div>
-        </header>
-
-        {/* Page Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 z-10 relative scroll-smooth">
-          {children}
         </div>
-      </main>
+      </header>
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* Slim Sidebar */}
+        <aside className="w-14 bg-card border-r border-white/10 flex flex-col items-center py-4 z-40 shrink-0">
+          <nav className="space-y-4 w-full flex flex-col items-center">
+            {navItems.map((item) => (
+              <Link key={item.href} href={item.href}>
+                <div 
+                  className={cn(
+                    "w-10 h-10 flex items-center justify-center rounded-sm transition-colors cursor-pointer",
+                    location === item.href 
+                      ? "bg-primary text-black" 
+                      : "text-muted-foreground hover:text-white hover:bg-white/10"
+                  )}
+                  title={item.label}
+                >
+                  <item.icon className="w-5 h-5" />
+                </div>
+              </Link>
+            ))}
+          </nav>
+          
+          <div className="mt-auto w-full flex flex-col items-center gap-4">
+             <div className="w-10 h-10 flex items-center justify-center rounded-sm text-destructive hover:bg-destructive/20 cursor-pointer">
+                <Bell className="w-5 h-5" />
+             </div>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-hidden relative bg-background flex flex-col">
+          {/* Ticker Tape */}
+          <div className="h-6 bg-muted/30 border-b border-white/10 flex items-center overflow-hidden whitespace-nowrap">
+             <div className="animate-marquee flex items-center gap-8 px-4 font-mono text-[10px] tracking-wider">
+                <span className="text-muted-foreground">BTC/USDT <span className="text-green-500">34,284.50 ▲</span></span>
+                <span className="text-muted-foreground">ETH/USDT <span className="text-red-500">1,824.20 ▼</span></span>
+                <span className="text-muted-foreground">SOL/USDT <span className="text-green-500">42.80 ▲</span></span>
+                <span className="text-muted-foreground">BNB/USDT <span className="text-green-500">245.10 ▲</span></span>
+                <span className="text-muted-foreground">XRP/USDT <span className="text-red-500">0.5420 ▼</span></span>
+                <span className="text-muted-foreground">ADA/USDT <span className="text-muted-foreground">0.2840 -</span></span>
+             </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-1 md:p-2">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

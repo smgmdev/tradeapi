@@ -29,61 +29,54 @@
   --color-chart-4: hsl(var(--chart-4));
   --color-chart-5: hsl(var(--chart-5));
   
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: calc(var(--radius) - 1px);
   --radius-lg: var(--radius);
 
-  --font-sans: 'Rajdhani', sans-serif;
+  --font-sans: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  
-  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  --animate-scan: scan 2s linear infinite;
-
-  @keyframes scan {
-    0% { transform: translateY(-100%); opacity: 0; }
-    50% { opacity: 1; }
-    100% { transform: translateY(100%); opacity: 0; }
-  }
 }
 
-/* Dark Future / Cyberpunk Theme */
+/* Bloomberg / Institutional Terminal Theme */
 :root {
-  --background: 220 40% 4%; /* Very dark blue-black */
-  --foreground: 210 20% 90%; /* Off-white */
+  /* Deep Charcoal / Black Backgrounds */
+  --background: 240 5% 6%;     /* #0f0f11 */
+  --foreground: 0 0% 95%;      /* #f2f2f2 */
   
-  --card: 220 35% 6%;
-  --card-foreground: 210 20% 90%;
+  --card: 240 4% 10%;          /* #18181a */
+  --card-foreground: 0 0% 95%;
   
-  --popover: 220 35% 6%;
-  --popover-foreground: 210 20% 90%;
+  --popover: 240 4% 10%;
+  --popover-foreground: 0 0% 95%;
   
-  --primary: 265 80% 60%; /* Neon Purple */
-  --primary-foreground: 210 20% 98%;
+  /* Bloomberg Orange & Institutional Blue */
+  --primary: 28 100% 50%;      /* #ff8800 (Bloomberg Orange) */
+  --primary-foreground: 0 0% 100%;
   
-  --secondary: 180 80% 40%; /* Cyan/Teal */
-  --secondary-foreground: 210 20% 98%;
+  --secondary: 210 100% 25%;   /* #004080 (Classic Finance Blue) */
+  --secondary-foreground: 0 0% 100%;
   
-  --muted: 215 25% 15%;
-  --muted-foreground: 215 20% 65%;
+  --muted: 240 4% 16%;
+  --muted-foreground: 240 5% 65%;
   
-  --accent: 265 80% 60%;
-  --accent-foreground: 210 20% 98%;
+  --accent: 240 4% 20%;
+  --accent-foreground: 0 0% 100%;
   
-  --destructive: 0 85% 60%; /* Neon Red */
-  --destructive-foreground: 210 20% 98%;
+  --destructive: 0 84% 60%;    /* Red for Down/Sell */
+  --destructive-foreground: 0 0% 98%;
 
-  --border: 215 25% 15%;
-  --input: 215 25% 15%;
-  --ring: 265 80% 60%;
+  --border: 240 4% 20%;        /* Subtle borders */
+  --input: 240 4% 16%;
+  --ring: 28 100% 50%;
   
-  --radius: 0.25rem;
+  --radius: 0rem; /* Sharp corners for professional feel */
 
-  /* Chart colors */
-  --chart-1: 180 80% 40%; /* Cyan */
-  --chart-2: 265 80% 60%; /* Purple */
-  --chart-3: 0 85% 60%;   /* Red */
-  --chart-4: 140 80% 50%; /* Green */
-  --chart-5: 45 90% 50%;  /* Gold */
+  /* Financial Chart Colors */
+  --chart-1: 28 100% 50%;      /* Orange */
+  --chart-2: 210 100% 50%;     /* Blue */
+  --chart-3: 142 70% 50%;      /* Green */
+  --chart-4: 0 84% 60%;        /* Red */
+  --chart-5: 0 0% 60%;         /* Grey */
 }
 
 @layer base {
@@ -92,40 +85,40 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    background-image: radial-gradient(circle at 50% 0%, hsl(265 80% 60% / 0.05), transparent 70%);
+    /* Subtle noise for that terminal feel, but cleaner than cyberpunk */
+    background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 20px 20px;
   }
 }
 
 @layer utilities {
-  .glass-panel {
-    @apply bg-black/40 backdrop-blur-md border border-white/5 shadow-lg;
+  .terminal-panel {
+    @apply bg-card border border-white/10 shadow-none;
   }
   
-  .neon-text {
-    text-shadow: 0 0 10px hsla(var(--primary), 0.5);
-  }
-  
-  .neon-border {
-    box-shadow: 0 0 10px hsla(var(--primary), 0.2), inset 0 0 5px hsla(var(--primary), 0.1);
-  }
-  
-  .grid-bg {
-    background-size: 40px 40px;
-    background-image: linear-gradient(to right, hsl(var(--border) / 0.1) 1px, transparent 1px),
-                      linear-gradient(to bottom, hsl(var(--border) / 0.1) 1px, transparent 1px);
+  .terminal-header {
+    @apply bg-muted/50 border-b border-white/10 uppercase font-bold tracking-wider text-xs py-1 px-3 text-muted-foreground flex items-center justify-between;
   }
 
-  /* Scrollbar styling for that terminal feel */
+  .terminal-text {
+    @apply font-mono text-sm;
+  }
+
+  .bloomberg-orange {
+    color: hsl(28 100% 50%);
+  }
+  
+  /* Custom Scrollbar */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
     background: hsl(var(--background));
   }
   ::-webkit-scrollbar-thumb {
     background: hsl(var(--muted));
-    border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground));
