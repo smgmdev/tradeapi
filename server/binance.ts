@@ -1,6 +1,9 @@
-import Binance from "binance-api-node";
+import BinanceModule from "binance-api-node";
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server as HTTPServer } from "http";
+
+// Handle both CommonJS and ES module exports
+const Binance = (BinanceModule as any).default || BinanceModule;
 
 export class BinanceManager {
   private client: any;
