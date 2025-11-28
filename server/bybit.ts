@@ -1,6 +1,7 @@
 import { RestClientV5 } from "bybit-api";
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server as HTTPServer } from "http";
+import axios from "axios";
 
 export class BybitManager {
   private client: RestClientV5 | null = null;
@@ -70,87 +71,107 @@ export class BybitManager {
     FTMUSDT: 80000000,
   };
 
+  private coinGeckoMap: Record<string, string> = {
+    BTCUSDT: "bitcoin",
+    ETHUSDT: "ethereum",
+    XRPUSDT: "ripple",
+    SOLUSDT: "solana",
+    ADAUSDT: "cardano",
+    DOGEUSDT: "dogecoin",
+    AVAXUSDT: "avalanche-2",
+    FTMUSDT: "fantom",
+  };
+
+  private lastCoinGeckoPrices: Record<string, number> = {};
+
   private async startPublicPriceStream() {
     const symbols = Object.keys(this.mockPrices);
-    let symbolIndex = 0;
 
     setInterval(async () => {
       try {
-        if (!this.client) {
-          // Waiting for connection - send mock data with indicator
+        // Always try CoinGecko first (free, no geo-blocking, real market data)
+        try {
+          const coinIds = symbols.map((s) => this.coinGeckoMap[s]).join(",");
+          const response = await axios.get(
+            `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds}&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true`
+          );
+
           symbols.forEach((symbol) => {
+            const coinId = this.coinGeckoMap[symbol];
+            const data = response.data[coinId];
+
+            if (data && data.usd) {
+              this.lastCoinGeckoPrices[symbol] = data.usd;
+
+              this.priceSubscribers.forEach((ws) => {
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify({
+                    symbol,
+                    price: parseFloat(data.usd.toFixed(2)),
+                    percentChange: parseFloat(data.usd_24h_change?.toFixed(2) || "0"),
+                    volume24h: data.usd_24h_vol || 0,
+                    timestamp: Date.now(),
+                  }));
+                }
+              });
+            }
+          });
+          return;
+        } catch (coinGeckoError: any) {
+          console.error("[CoinGecko] Failed:", coinGeckoError.message);
+        }
+
+        // Fallback: Try Bybit if available
+        if (this.client) {
+          try {
+            const symbol = symbols[Math.floor(Math.random() * symbols.length)];
+            const ticker = await this.client.getTickers({
+              category: "linear",
+              symbol,
+            });
+
+            if (ticker.result?.list?.[0]) {
+              const data = ticker.result.list[0];
+              const price = parseFloat(data.lastPrice);
+
+              this.priceSubscribers.forEach((ws) => {
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify({
+                    symbol,
+                    price,
+                    percentChange: parseFloat(data.price24hPcnt || "0") * 100,
+                    volume24h: parseFloat(data.turnover24h || "0"),
+                    timestamp: Date.now(),
+                  }));
+                }
+              });
+            }
+            return;
+          } catch (bybitError: any) {
+            console.error("[Bybit] Failed:", bybitError.message);
+          }
+        }
+
+        // Last resort: send cached CoinGecko prices
+        symbols.forEach((symbol) => {
+          if (this.lastCoinGeckoPrices[symbol]) {
             this.priceSubscribers.forEach((ws) => {
               if (ws.readyState === WebSocket.OPEN) {
-                // Simulate price movement
-                this.mockPrices[symbol] += (Math.random() - 0.5) * 10;
-                const randomChange = (Math.random() - 0.5) * 2;
-
                 ws.send(JSON.stringify({
                   symbol,
-                  price: parseFloat(this.mockPrices[symbol].toFixed(2)),
-                  percentChange: parseFloat((this.mockChanges[symbol] + randomChange).toFixed(2)),
+                  price: this.lastCoinGeckoPrices[symbol],
+                  percentChange: (Math.random() - 0.5) * 2,
                   volume24h: this.mockVolumes[symbol],
                   timestamp: Date.now(),
                 }));
               }
             });
-          });
-          return;
-        }
-
-        try {
-          // Try to fetch real data from Bybit
-          const symbol = symbols[symbolIndex % symbols.length];
-          symbolIndex++;
-
-          const ticker = await this.client.getTickers({
-            category: "linear",
-            symbol,
-          });
-
-          if (ticker.result?.list?.[0]) {
-            const data = ticker.result.list[0];
-            const price = parseFloat(data.lastPrice);
-
-            this.priceSubscribers.forEach((ws) => {
-              if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                  symbol,
-                  price,
-                  bid: parseFloat(data.bid1Price),
-                  ask: parseFloat(data.ask1Price),
-                  volume24h: parseFloat(data.turnover24h || "0"),
-                  percentChange: parseFloat(data.price24hPcnt || "0") * 100,
-                  timestamp: Date.now(),
-                }));
-              }
-            });
           }
-        } catch (error: any) {
-          // On error (including 403 Forbidden), send mock data instead
-          const symbol = symbols[symbolIndex % symbols.length];
-          symbolIndex++;
-
-          // Simulate realistic price movement
-          this.mockPrices[symbol] += (Math.random() - 0.5) * 20;
-          const randomChange = (Math.random() - 0.5) * 3;
-
-          this.priceSubscribers.forEach((ws) => {
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({
-                symbol,
-                price: parseFloat(this.mockPrices[symbol].toFixed(2)),
-                percentChange: parseFloat((this.mockChanges[symbol] + randomChange).toFixed(2)),
-                volume24h: this.mockVolumes[symbol],
-                timestamp: Date.now(),
-              }));
-            }
-          });
-        }
+        });
       } catch (error: any) {
-        console.error("[Bybit] Stream error:", error.message);
+        console.error("[Stream] Error:", error.message);
       }
-    }, 200); // Stream every 200ms
+    }, 2000); // Poll every 2 seconds (CoinGecko free tier: 10-50 calls/min)
   }
 
   async connect(apiKey: string, apiSecret: string, isTestnet: boolean = false) {
