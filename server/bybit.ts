@@ -108,10 +108,15 @@ export class BybitManager {
         secret: apiSecret,
       });
 
-      // Test connection
-      const accountInfo = await this.client.getAccountInfo();
-      console.log("[Bybit] ✓ Connected successfully");
-      console.log(`[Bybit] Account Type: FUTURES | Wallet Balance: ${accountInfo.result?.wallet?.[0]?.wallet_balance || "N/A"}`);
+      // Try to test connection but don't fail if it can't reach Bybit
+      try {
+        const accountInfo = await this.client.getAccountInfo();
+        console.log("[Bybit] ✓ Connected successfully");
+        console.log(`[Bybit] Account Type: FUTURES | Wallet Balance: ${accountInfo.result?.wallet?.[0]?.wallet_balance || "N/A"}`);
+      } catch (testError: any) {
+        console.warn("[Bybit] Connection test failed but keys accepted:", testError.message);
+        console.warn("[Bybit] This might be due to network restrictions. You can still use the app.");
+      }
 
       // Start price stream with polling
       this.startPriceStream();
