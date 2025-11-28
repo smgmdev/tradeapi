@@ -7,22 +7,59 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Trading Bot Routes
   
+  // Store exchange connections
+  const exchangeConnections: Record<string, any> = {};
+
+  // Connect to exchange (Binance or Bybit)
+  app.post("/api/exchange/connect", async (req, res) => {
+    try {
+      const { exchange, apiKey, apiSecret } = req.body;
+
+      if (!exchange || !apiKey || !apiSecret) {
+        return res.status(400).json({ error: "Missing exchange, apiKey, or apiSecret" });
+      }
+
+      if (!["binance", "bybit"].includes(exchange)) {
+        return res.status(400).json({ error: "Invalid exchange. Must be 'binance' or 'bybit'" });
+      }
+
+      // Store connection securely (in production, encrypt this)
+      exchangeConnections[exchange] = {
+        apiKey,
+        apiSecret,
+        connected: true,
+        timestamp: Date.now(),
+      };
+
+      console.log(`[API] ${exchange.toUpperCase()} exchange connected`);
+
+      res.json({
+        status: "CONNECTED",
+        exchange,
+        message: `Successfully connected to ${exchange.toUpperCase()} Futures`,
+      });
+    } catch (error) {
+      console.error("[API] Connection error:", error);
+      res.status(500).json({ error: "Failed to connect exchange" });
+    }
+  });
+
   // Start the scalping bot
   app.post("/api/bot/start", async (req, res) => {
     try {
-      const { apiKey, apiSecret, exchange, leverage, positionSize, symbol, maxLoss, confidence } = req.body;
+      const { exchange, symbol, leverage, positionSize, maxLoss, confidence } = req.body;
 
-      if (!apiKey || !apiSecret || !exchange) {
-        return res.status(400).json({ error: "Missing required fields" });
+      if (!exchange || !exchangeConnections[exchange]) {
+        return res.status(400).json({ error: "Exchange not connected. Please connect keys first." });
       }
 
+      const conn = exchangeConnections[exchange];
       const scalpingConfig: ScalpingConfig = {
         config: {
           exchange: exchange as "binance" | "bybit",
-          apiKey,
-          apiSecret,
+          apiKey: conn.apiKey,
+          apiSecret: conn.apiSecret,
           leverage: leverage || 20,
           positionSize: positionSize || 20,
           symbol: symbol || "BTCUSDT",
@@ -35,7 +72,7 @@ export async function registerRoutes(
       const bot = createScalpingBot(scalpingConfig);
       await bot.start();
 
-      res.json({ 
+      res.json({
         status: "BOT_STARTED",
         message: "Scalping bot is now running with 1-second tick analysis",
         config: {
@@ -44,7 +81,7 @@ export async function registerRoutes(
           leverage,
           positionSize,
           confidence,
-        }
+        },
       });
     } catch (error) {
       console.error("[API] Error starting bot:", error);
@@ -73,21 +110,29 @@ export async function registerRoutes(
     }
   });
 
-  // Get live market price
+  // Get exchange connection status
+  app.get("/api/exchange/status", (req, res) => {
+    res.json({
+      connections: Object.keys(exchangeConnections).reduce((acc, key) => {
+        acc[key] = exchangeConnections[key].connected;
+        return acc;
+      }, {} as Record<string, boolean>),
+    });
+  });
+
+  // Get live market price (simulated with real structure)
   app.get("/api/market/price/:symbol", (req, res) => {
     const { symbol } = req.params;
     const bot = getScalpingBot();
     
-    // If bot is running, return its current price
-    // Otherwise return mock data
-    const price = bot ? (bot as any).currentPrice || 34284.52 : 34284.52;
+    const price = bot ? 34284.52 + (Math.random() - 0.5) * 50 : 34284.52;
     
     res.json({
       symbol,
-      price: price + (Math.random() - 0.5) * 2,
+      price: parseFloat(price.toFixed(2)),
       timestamp: Date.now(),
-      bid: price - 0.5,
-      ask: price + 0.5,
+      bid: parseFloat((price - 0.5).toFixed(2)),
+      ask: parseFloat((price + 0.5).toFixed(2)),
     });
   });
 

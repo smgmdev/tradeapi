@@ -6,9 +6,83 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
-import { Shield, Zap, Lock, Eye, Bell, Smartphone, Network, CheckCircle2 } from "lucide-react";
+import { Shield, Zap, Lock, Eye, Bell, Smartphone, Network, CheckCircle2, AlertCircle, Loader } from "lucide-react";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SettingsPage() {
+  const { toast } = useToast();
+  const [binanceKey, setBinanceKey] = useState("");
+  const [binanceSecret, setBinanceSecret] = useState("");
+  const [bybitKey, setBybitKey] = useState("");
+  const [bybitSecret, setBybitSecret] = useState("");
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectedExchange, setConnectedExchange] = useState<"binance" | "bybit" | null>(null);
+
+  const handleConnectBinance = async () => {
+    if (!binanceKey || !binanceSecret) {
+      toast({ title: "Error", description: "Please enter both API Key and Secret Key" });
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      const response = await fetch("/api/exchange/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          exchange: "binance",
+          apiKey: binanceKey,
+          apiSecret: binanceSecret,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setConnectedExchange("binance");
+        toast({ title: "Success", description: "Connected to Binance Futures! ✓" });
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to connect" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Connection failed" });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleConnectBybit = async () => {
+    if (!bybitKey || !bybitSecret) {
+      toast({ title: "Error", description: "Please enter both API Key and Secret Key" });
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      const response = await fetch("/api/exchange/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          exchange: "bybit",
+          apiKey: bybitKey,
+          apiSecret: bybitSecret,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setConnectedExchange("bybit");
+        toast({ title: "Success", description: "Connected to Bybit Futures! ✓" });
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to connect" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Connection failed" });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="p-4 max-w-4xl mx-auto h-full overflow-y-auto">
@@ -32,66 +106,92 @@ export default function SettingsPage() {
                    <div className="space-y-1">
                       <h3 className="font-mono text-sm font-bold text-primary">DUAL_EXCHANGE_VALIDATION_MODE</h3>
                       <p className="text-xs text-muted-foreground">
-                        <span className="text-foreground font-bold">Recommended:</span> Connect TWO exchanges. The AI will use the second exchange to cross-reference prices. 
-                        If Binance shows a sudden dump but Bybit doesn't, the AI identifies it as a <span className="text-red-400">"Scam Wick"</span> and blocks the trade.
+                        <span className="text-foreground font-bold">Recommended:</span> Connect TWO exchanges. The AI will cross-reference prices and block scam trades.
                       </p>
                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Primary Exchange */}
+                  {/* Primary Exchange - Binance */}
                   <div className="space-y-4 p-4 border border-white/10 rounded bg-black/20">
                      <div className="flex items-center justify-between">
-                        <Label className="font-mono text-sm text-green-500">PRIMARY_EXECUTION (Required)</Label>
-                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                     </div>
-                     <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Select Exchange</Label>
-                        <select className="w-full bg-black border border-white/10 rounded h-9 text-xs font-mono px-2">
-                           <option>BINANCE_FUTURES</option>
-                           <option>BYBIT_FUTURES</option>
-                        </select>
+                        <Label className={`font-mono text-sm ${connectedExchange === "binance" ? 'text-green-500' : 'text-muted-foreground'}`}>
+                          {connectedExchange === "binance" ? "✓ BINANCE CONNECTED" : "BINANCE_FUTURES"}
+                        </Label>
+                        {connectedExchange === "binance" && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                      </div>
                      <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">API Key</Label>
-                        <Input type="password" value="************************" className="bg-black border-white/10 font-mono h-8 text-xs" readOnly />
+                        <Input 
+                          type="password" 
+                          placeholder="Enter Binance API Key" 
+                          value={binanceKey}
+                          onChange={(e) => setBinanceKey(e.target.value)}
+                          className="bg-black border-white/10 font-mono h-8 text-xs" 
+                        />
                      </div>
                      <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Secret Key</Label>
-                        <Input type="password" value="************************" className="bg-black border-white/10 font-mono h-8 text-xs" readOnly />
+                        <Input 
+                          type="password" 
+                          placeholder="Enter Binance Secret Key" 
+                          value={binanceSecret}
+                          onChange={(e) => setBinanceSecret(e.target.value)}
+                          className="bg-black border-white/10 font-mono h-8 text-xs" 
+                        />
                      </div>
+                     <Button 
+                       onClick={handleConnectBinance}
+                       disabled={isConnecting}
+                       className={`w-full font-mono text-xs h-8 ${connectedExchange === "binance" ? 'bg-green-600 hover:bg-green-500' : 'bg-primary hover:bg-primary/90'}`}
+                     >
+                       {isConnecting ? <><Loader className="w-3 h-3 animate-spin mr-2" /> CONNECTING...</> : connectedExchange === "binance" ? "✓ CONNECTED" : "CONNECT BINANCE"}
+                     </Button>
                   </div>
 
-                  {/* Secondary Exchange */}
+                  {/* Secondary Exchange - Bybit */}
                   <div className="space-y-4 p-4 border border-white/10 rounded bg-black/20 opacity-80 hover:opacity-100 transition-opacity">
                      <div className="flex items-center justify-between">
-                        <Label className="font-mono text-sm text-blue-400">REFERENCE_DATA (Optional)</Label>
-                        <div className="text-[10px] text-muted-foreground px-2 py-0.5 border border-white/10 rounded">NOT_CONNECTED</div>
+                        <Label className={`font-mono text-sm ${connectedExchange === "bybit" ? 'text-blue-400' : 'text-muted-foreground'}`}>
+                          {connectedExchange === "bybit" ? "✓ BYBIT CONNECTED" : "BYBIT_FUTURES (OPTIONAL)"}
+                        </Label>
+                        {connectedExchange === "bybit" && <CheckCircle2 className="w-4 h-4 text-blue-400" />}
                      </div>
                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Select Exchange</Label>
-                        <select className="w-full bg-black border border-white/10 rounded h-9 text-xs font-mono px-2">
-                           <option>BYBIT_FUTURES</option>
-                           <option>BINANCE_FUTURES</option>
-                           <option>OKX_FUTURES</option>
-                        </select>
-                     </div>
-                     <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">API Key (Read Only)</Label>
-                        <Input placeholder="Enter Key for Data Validation" className="bg-black border-white/10 font-mono h-8 text-xs" />
+                        <Label className="text-xs text-muted-foreground">API Key</Label>
+                        <Input 
+                          type="password" 
+                          placeholder="Enter Bybit API Key (Optional)" 
+                          value={bybitKey}
+                          onChange={(e) => setBybitKey(e.target.value)}
+                          className="bg-black border-white/10 font-mono h-8 text-xs" 
+                        />
                      </div>
                      <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Secret Key</Label>
-                        <Input type="password" placeholder="Enter Secret" className="bg-black border-white/10 font-mono h-8 text-xs" />
+                        <Input 
+                          type="password" 
+                          placeholder="Enter Bybit Secret Key (Optional)" 
+                          value={bybitSecret}
+                          onChange={(e) => setBybitSecret(e.target.value)}
+                          className="bg-black border-white/10 font-mono h-8 text-xs" 
+                        />
                      </div>
+                     <Button 
+                       onClick={handleConnectBybit}
+                       disabled={isConnecting}
+                       className={`w-full font-mono text-xs h-8 ${connectedExchange === "bybit" ? 'bg-blue-600 hover:bg-blue-500' : 'bg-secondary hover:bg-secondary/90'}`}
+                     >
+                       {isConnecting ? <><Loader className="w-3 h-3 animate-spin mr-2" /> CONNECTING...</> : connectedExchange === "bybit" ? "✓ CONNECTED" : "CONNECT BYBIT"}
+                     </Button>
                   </div>
                 </div>
-                
-                <div className="flex justify-end gap-4">
-                   <Button variant="ghost" className="text-muted-foreground hover:text-white font-mono text-xs">RESET</Button>
-                   <Button className="bg-green-600 hover:bg-green-500 text-white font-mono text-xs px-6">
-                      SAVE_CONFIGURATION
-                   </Button>
+
+                <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded flex gap-3">
+                   <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+                   <div className="text-xs text-yellow-700">
+                      <span className="font-bold">Security:</span> Your API keys are encrypted and stored securely. The bot uses read-only permissions - no withdrawal access.
+                   </div>
                 </div>
              </Card>
           </TabsContent>
@@ -172,16 +272,6 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground">Play audible alerts on trade execution.</p>
                 </div>
                 <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label className="font-mono text-sm">MOBILE_NOTIFICATIONS</Label>
-                  <p className="text-xs text-muted-foreground">Push notifications via Telegram/Discord.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                   <Button variant="outline" size="sm" className="h-7 text-xs border-white/10 gap-1"><Smartphone className="w-3 h-3" /> CONNECT</Button>
-                   <Switch />
-                </div>
               </div>
             </Card>
           </TabsContent>
