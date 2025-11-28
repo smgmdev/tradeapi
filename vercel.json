@@ -1,17 +1,10 @@
 {
   "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
   "env": {
     "NODE_ENV": "production"
   },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api/server"
-    }
-  ],
   "functions": {
-    "api/server.js": {
+    "api/index.js": {
       "memory": 1024,
       "maxDuration": 60
     }
