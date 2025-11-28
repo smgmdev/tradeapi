@@ -177,6 +177,22 @@ export class BinanceManager {
     return this.currentPrice;
   }
 
+  async getAccountInfo() {
+    try {
+      if (!this.client) throw new Error("Not connected to Binance");
+      const accountInfo = await this.client.futuresAccountInfo();
+      return {
+        accountType: accountInfo.accountType || "FUTURES",
+        balances: accountInfo.assets || [],
+        totalWalletBalance: accountInfo.totalWalletBalance || 0,
+        totalUnrealizedProfit: accountInfo.totalUnrealizedProfit || 0,
+      };
+    } catch (error: any) {
+      console.error("[Binance] Failed to get account info:", error.message);
+      throw error;
+    }
+  }
+
   disconnect() {
     if (this.priceStream) {
       this.priceStream();

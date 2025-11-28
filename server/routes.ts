@@ -13,6 +13,18 @@ export async function registerRoutes(
   // Initialize Binance Manager
   binanceManager = new BinanceManager(httpServer);
 
+  // Auto-connect to Binance with environment variables
+  const apiKey = process.env.BINANCE_API_KEY;
+  const apiSecret = process.env.BINANCE_API_SECRET;
+  if (apiKey && apiSecret) {
+    try {
+      await binanceManager.connect(apiKey, apiSecret);
+      console.log("[API] ✓ Auto-connected to Binance with API credentials");
+    } catch (error: any) {
+      console.error("[API] Failed to auto-connect to Binance:", error.message);
+    }
+  }
+
   // Connect to Binance with API keys
   app.post("/api/exchange/connect", async (req, res) => {
     try {
@@ -111,17 +123,22 @@ export async function registerRoutes(
     }
   });
 
-  // Get Binance account info
+  // Get Binance account info - REAL DATA from exchange
   app.get("/api/account", async (req, res) => {
     try {
       if (!binanceManager!.isConnected()) {
         return res.status(400).json({ error: "Not connected to Binance" });
       }
 
+      const accountInfo = await binanceManager!.getAccountInfo();
       const currentPrice = binanceManager!.getCurrentPrice();
       res.json({
         connected: true,
         price: currentPrice,
+        accountType: accountInfo.accountType,
+        balances: accountInfo.balances,
+        totalWalletBalance: accountInfo.totalWalletBalance,
+        totalUnrealizedProfit: accountInfo.totalUnrealizedProfit,
         timestamp: Date.now(),
       });
     } catch (error: any) {
