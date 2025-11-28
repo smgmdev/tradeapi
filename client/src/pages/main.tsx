@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 
 interface TradingPair {
@@ -10,6 +10,13 @@ interface TradingPair {
   volume24h: string;
 }
 
+interface PriceUpdate {
+  symbol: string;
+  price: number;
+  percentChange: number;
+  volume24h: number;
+}
+
 export function MainPage() {
   const [apiKey, setApiKey] = useState("");
   const [apiSecret, setApiSecret] = useState("");
@@ -19,6 +26,50 @@ export function MainPage() {
   const [error, setError] = useState("");
   const [pairs, setPairs] = useState<TradingPair[]>([]);
   const [loadingPairs, setLoadingPairs] = useState(false);
+  const [priceUpdates, setPriceUpdates] = useState<Record<string, PriceUpdate>>({});
+  const [wsConnected, setWsConnected] = useState(false);
+
+  // Real-time WebSocket price stream
+  useEffect(() => {
+    if (!connected) return;
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/prices`);
+
+    ws.onopen = () => {
+      console.log("[Frontend] Connected to real-time price stream");
+      setWsConnected(true);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.symbol && data.price) {
+          setPriceUpdates((prev) => ({
+            ...prev,
+            [data.symbol]: {
+              symbol: data.symbol,
+              price: data.price,
+              percentChange: data.percentChange || 0,
+              volume24h: data.volume24h || 0,
+            },
+          }));
+        }
+      } catch (e) {
+        console.error("[Frontend] WebSocket parse error:", e);
+      }
+    };
+
+    ws.onerror = () => {
+      setWsConnected(false);
+    };
+
+    ws.onclose = () => {
+      setWsConnected(false);
+    };
+
+    return () => ws.close();
+  }, [connected]);
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +91,7 @@ export function MainPage() {
       const data = await res.json();
       setConnected(true);
       setError("");
-      
+
       // Fetch trading pairs
       await handleFetchPairs();
     } catch (err: any) {
@@ -56,7 +107,7 @@ export function MainPage() {
     try {
       const res = await fetch("/api/trading-pairs");
       if (!res.ok) throw new Error("Failed to fetch pairs");
-      
+
       const data = await res.json();
       setPairs(data.pairs || []);
     } catch (err: any) {
@@ -71,7 +122,19 @@ export function MainPage() {
     setApiKey("");
     setApiSecret("");
     setPairs([]);
+    setPriceUpdates({});
     setError("");
+  };
+
+  // Get live price for a pair, fallback to static price
+  const getLivePrice = (pair: TradingPair) => {
+    const update = priceUpdates[pair.symbol];
+    return update ? update.price.toFixed(2) : parseFloat(pair.lastPrice).toFixed(2);
+  };
+
+  const getLiveChange = (pair: TradingPair) => {
+    const update = priceUpdates[pair.symbol];
+    return update ? update.percentChange.toFixed(2) : parseFloat(pair.change24h).toFixed(2);
   };
 
   return (
@@ -80,6 +143,9 @@ export function MainPage() {
       <div className="border-b border-black px-4 py-3 bg-black text-white">
         <h1 className="text-sm font-bold">BYBIT_FUTURES_TERMINAL</h1>
         <p className="text-xs opacity-70 mt-1">Real-time Trading Pairs Viewer</p>
+        {wsConnected && connected && (
+          <p className="text-xs text-green-400 mt-1 animate-pulse">🔴 LIVE PRICES STREAMING</p>
+        )}
       </div>
 
       <div className="flex h-full">
@@ -152,6 +218,9 @@ export function MainPage() {
                   <div>
                     <span className="opacity-70">Pairs Loaded:</span> {pairs.length}
                   </div>
+                  <div>
+                    <span className="opacity-70">Stream:</span> {wsConnected ? "🟢 LIVE" : "🔴 OFFLINE"}
+                  </div>
                 </div>
 
                 <button
@@ -201,38 +270,52 @@ export function MainPage() {
               </div>
 
               <div>
-                {pairs.map((pair, idx) => (
-                  <div
-                    key={pair.id}
-                    className={`flex text-xs border-b border-gray-300 ${
-                      idx % 2 === 0 ? "bg-white" : "bg-gray-100"
-                    } hover:bg-yellow-100 transition-colors`}
-                  >
-                    <div className="flex-1 px-3 py-2 border-r border-gray-300 font-mono font-bold">
-                      {pair.symbol}
-                    </div>
-                    <div className="w-24 px-3 py-2 border-r border-gray-300 uppercase text-xs opacity-70">
-                      {pair.category}
-                    </div>
-                    <div className="w-32 px-3 py-2 border-r border-gray-300 text-right font-mono">
-                      ${parseFloat(pair.lastPrice).toFixed(2)}
-                    </div>
+                {pairs.map((pair, idx) => {
+                  const livePrice = getLivePrice(pair);
+                  const liveChange = getLiveChange(pair);
+                  const hasUpdate = !!priceUpdates[pair.symbol];
+
+                  return (
                     <div
-                      className={`w-24 px-3 py-2 border-r border-gray-300 text-right font-mono ${
-                        parseFloat(pair.change24h) >= 0 ? "text-green-600" : "text-red-600"
-                      }`}
+                      key={pair.id}
+                      className={`flex text-xs border-b border-gray-300 transition-colors ${
+                        idx % 2 === 0 ? "bg-white" : "bg-gray-100"
+                      } hover:bg-yellow-100 ${hasUpdate ? "bg-green-50" : ""}`}
                     >
-                      {parseFloat(pair.change24h) >= 0 ? "+" : ""}
-                      {parseFloat(pair.change24h).toFixed(2)}%
+                      <div className="flex-1 px-3 py-2 border-r border-gray-300 font-mono font-bold">
+                        {pair.symbol}
+                      </div>
+                      <div className="w-24 px-3 py-2 border-r border-gray-300 uppercase text-xs opacity-70">
+                        {pair.category}
+                      </div>
+                      <div className="w-32 px-3 py-2 border-r border-gray-300 text-right font-mono">
+                        ${livePrice}
+                        {hasUpdate && <span className="text-green-600 font-bold"> ●</span>}
+                      </div>
+                      <div
+                        className={`w-24 px-3 py-2 border-r border-gray-300 text-right font-mono ${
+                          parseFloat(liveChange) >= 0 ? "text-green-600" : "text-red-600"
+                        }`}
+                      >
+                        {parseFloat(liveChange) >= 0 ? "+" : ""}
+                        {liveChange}%
+                      </div>
+                      <div className="w-32 px-3 py-2 text-right font-mono opacity-70">
+                        {
+                          hasUpdate
+                            ? (priceUpdates[pair.symbol].volume24h / 1e9).toLocaleString("en-US", {
+                                notation: "compact",
+                                maximumFractionDigits: 1,
+                              })
+                            : parseFloat(pair.volume24h).toLocaleString("en-US", {
+                                notation: "compact",
+                                maximumFractionDigits: 1,
+                              })
+                        }
+                      </div>
                     </div>
-                    <div className="w-32 px-3 py-2 text-right font-mono opacity-70">
-                      {parseFloat(pair.volume24h).toLocaleString("en-US", {
-                        notation: "compact",
-                        maximumFractionDigits: 1,
-                      })}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -245,26 +328,6 @@ export function MainPage() {
           )}
         </div>
       </div>
-
-      {/* Meta tags update */}
-      {typeof document !== "undefined" && (
-        <>
-          {!document.querySelector('meta[property="og:title"]') && (
-            <>
-              <meta property="og:title" content="Bybit Futures Terminal" />
-              <meta name="twitter:title" content="Bybit Futures Terminal" />
-              <meta
-                property="og:description"
-                content="Real-time futures trading pairs viewer powered by Bybit API"
-              />
-              <meta
-                name="twitter:description"
-                content="Real-time futures trading pairs viewer powered by Bybit API"
-              />
-            </>
-          )}
-        </>
-      )}
     </div>
   );
 }

@@ -38,6 +38,9 @@ export class BybitManager {
   }
 
   private async startPublicPriceStream() {
+    const symbols = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "SOLUSDT", "ADAUSDT"];
+    let symbolIndex = 0;
+
     setInterval(async () => {
       try {
         // ONLY stream REAL data from authenticated client
@@ -57,20 +60,24 @@ export class BybitManager {
         }
 
         try {
+          // Rotate through different symbols to get real-time data
+          const symbol = symbols[symbolIndex % symbols.length];
+          symbolIndex++;
+
           const ticker = await this.client.getTickers({
             category: "linear",
-            symbol: "BTCUSDT",
+            symbol,
           });
 
           if (ticker.result?.list?.[0]) {
             const data = ticker.result.list[0];
-            this.currentPrice = parseFloat(data.lastPrice);
+            const price = parseFloat(data.lastPrice);
 
             this.priceSubscribers.forEach((ws) => {
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
-                  symbol: "BTCUSDT",
-                  price: this.currentPrice,
+                  symbol,
+                  price,
                   bid: parseFloat(data.bid1Price),
                   ask: parseFloat(data.ask1Price),
                   volume24h: parseFloat(data.turnover24h || "0"),
@@ -81,23 +88,15 @@ export class BybitManager {
             });
           }
         } catch (error: any) {
-          console.error("[Bybit] Failed to fetch real ticker:", error.message);
-          // Send error state - no mock data
-          this.priceSubscribers.forEach((ws) => {
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({
-                symbol: "BTCUSDT",
-                error: true,
-                message: "Unable to fetch price data",
-                timestamp: Date.now(),
-              }));
-            }
-          });
+          // Silently fail on geo-blocking, don't disconnect
+          if (!error.message.includes("Forbidden")) {
+            console.error("[Bybit] Failed to fetch real ticker:", error.message);
+          }
         }
       } catch (error: any) {
         console.error("[Bybit] Stream error:", error.message);
       }
-    }, 1000);
+    }, 200); // Poll every 200ms to rotate through symbols
   }
 
   async connect(apiKey: string, apiSecret: string, isTestnet: boolean = false) {
