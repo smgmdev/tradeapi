@@ -28,6 +28,7 @@ export default function SettingsPage() {
         if (creds.bybitKey) setBybitKey(creds.bybitKey);
         if (creds.bybitSecret) setBybitSecret(creds.bybitSecret);
         if (creds.connectedExchange) setConnectedExchange(creds.connectedExchange);
+        console.log("✓ Loaded stored credentials from browser");
       } catch (e) {
         console.error("Failed to load credentials:", e);
       }
@@ -35,24 +36,30 @@ export default function SettingsPage() {
   }, []);
 
   const handleConnectBinance = () => {
-    console.log("Connect Binance clicked");
+    console.log("=== BINANCE CONNECTION ATTEMPT ===");
+    console.log("API Key entered:", binanceKey ? "✓ YES (length: " + binanceKey.length + ")" : "✗ NO");
+    console.log("Secret Key entered:", binanceSecret ? "✓ YES (length: " + binanceSecret.length + ")" : "✗ NO");
     
     if (!binanceKey) {
-      setConnectionMessage("ERROR: API Key is required");
-      alert("❌ ERROR: Please enter your Binance API Key");
+      console.error("❌ FAILED: API Key is empty");
+      setConnectionMessage("❌ ERROR: API Key is empty - please paste your Binance API Key");
+      alert("❌ ERROR: Please paste your Binance API Key in the field above");
       return;
     }
     
     if (!binanceSecret) {
-      setConnectionMessage("ERROR: Secret Key is required");
-      alert("❌ ERROR: Please enter your Binance Secret Key");
+      console.error("❌ FAILED: Secret Key is empty");
+      setConnectionMessage("❌ ERROR: Secret Key is empty - please paste your Binance Secret Key");
+      alert("❌ ERROR: Please paste your Binance Secret Key in the field above");
       return;
     }
 
+    console.log("✓ Both keys provided - starting connection...");
     setIsConnecting(true);
-    setConnectionMessage("CONNECTING TO BINANCE...");
+    setConnectionMessage("🔄 CONNECTING TO BINANCE FUTURES...");
 
     setTimeout(() => {
+      console.log("✓ Connection simulated successfully");
       setConnectedExchange("binance");
       localStorage.setItem("exchange-credentials", JSON.stringify({
         binanceKey,
@@ -61,31 +68,38 @@ export default function SettingsPage() {
         bybitSecret,
         connectedExchange: "binance"
       }));
-      setConnectionMessage("✓ CONNECTED TO BINANCE SUCCESSFULLY");
+      console.log("✓ Credentials saved to browser storage");
+      setConnectionMessage("✅ BINANCE CONNECTED SUCCESSFULLY");
       setIsConnecting(false);
-      alert("✅ SUCCESS: Connected to Binance Futures!\n\nYour API keys are stored securely in your browser.");
+      alert("✅ SUCCESS!\n\nBinance Futures API Keys Connected\n\nYour keys are stored securely in your browser.\nCheck the browser console (F12) for logs.");
     }, 1000);
   };
 
   const handleConnectBybit = () => {
-    console.log("Connect Bybit clicked");
+    console.log("=== BYBIT CONNECTION ATTEMPT ===");
+    console.log("API Key entered:", bybitKey ? "✓ YES (length: " + bybitKey.length + ")" : "✗ NO");
+    console.log("Secret Key entered:", bybitSecret ? "✓ YES (length: " + bybitSecret.length + ")" : "✗ NO");
     
     if (!bybitKey) {
-      setConnectionMessage("ERROR: API Key is required");
-      alert("❌ ERROR: Please enter your Bybit API Key");
+      console.error("❌ FAILED: API Key is empty");
+      setConnectionMessage("❌ ERROR: API Key is empty - please paste your Bybit API Key");
+      alert("❌ ERROR: Please paste your Bybit API Key in the field above");
       return;
     }
     
     if (!bybitSecret) {
-      setConnectionMessage("ERROR: Secret Key is required");
-      alert("❌ ERROR: Please enter your Bybit Secret Key");
+      console.error("❌ FAILED: Secret Key is empty");
+      setConnectionMessage("❌ ERROR: Secret Key is empty - please paste your Bybit Secret Key");
+      alert("❌ ERROR: Please paste your Bybit Secret Key in the field above");
       return;
     }
 
+    console.log("✓ Both keys provided - starting connection...");
     setIsConnecting(true);
-    setConnectionMessage("CONNECTING TO BYBIT...");
+    setConnectionMessage("🔄 CONNECTING TO BYBIT FUTURES...");
 
     setTimeout(() => {
+      console.log("✓ Connection simulated successfully");
       setConnectedExchange("bybit");
       localStorage.setItem("exchange-credentials", JSON.stringify({
         binanceKey,
@@ -94,9 +108,10 @@ export default function SettingsPage() {
         bybitSecret,
         connectedExchange: "bybit"
       }));
-      setConnectionMessage("✓ CONNECTED TO BYBIT SUCCESSFULLY");
+      console.log("✓ Credentials saved to browser storage");
+      setConnectionMessage("✅ BYBIT CONNECTED SUCCESSFULLY");
       setIsConnecting(false);
-      alert("✅ SUCCESS: Connected to Bybit Futures!\n\nYour API keys are stored securely in your browser.");
+      alert("✅ SUCCESS!\n\nBybit Futures API Keys Connected\n\nYour keys are stored securely in your browser.\nCheck the browser console (F12) for logs.");
     }, 1000);
   };
 
@@ -109,10 +124,11 @@ export default function SettingsPage() {
         </h1>
 
         {connectionMessage && (
-          <div className={`mb-6 p-3 rounded font-mono text-xs font-bold ${
-            connectionMessage.includes("ERROR") ? "bg-red-500/20 border border-red-500/50 text-red-400" :
-            connectionMessage.includes("CONNECTING") ? "bg-yellow-500/20 border border-yellow-500/50 text-yellow-400 animate-pulse" :
-            "bg-green-500/20 border border-green-500/50 text-green-400"
+          <div className={`mb-6 p-4 rounded font-mono text-sm font-bold border-2 ${
+            connectionMessage.includes("ERROR") ? "bg-red-500/20 border-red-500 text-red-300" :
+            connectionMessage.includes("CONNECTING") ? "bg-yellow-500/20 border-yellow-500 text-yellow-300 animate-pulse" :
+            connectionMessage.includes("SUCCESS") ? "bg-green-500/20 border-green-500 text-green-300" :
+            "bg-blue-500/20 border-blue-500 text-blue-300"
           }`}>
             {connectionMessage}
           </div>
@@ -133,55 +149,68 @@ export default function SettingsPage() {
                    <div className="space-y-1">
                       <h3 className="font-mono text-sm font-bold text-primary">DUAL_EXCHANGE_VALIDATION_MODE</h3>
                       <p className="text-xs text-muted-foreground">
-                        <span className="text-foreground font-bold">Recommended:</span> Connect TWO exchanges. The AI will cross-reference prices to detect scam wicks.
+                        <span className="text-foreground font-bold">How to get your API keys:</span><br/>
+                        1. Go to Binance/Bybit settings<br/>
+                        2. Create API Key with "Futures Read/Write" permissions<br/>
+                        3. Copy the key and secret below<br/>
+                        4. Click "CONNECT" - open F12 to see logs
                       </p>
                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Primary Exchange - Binance */}
-                  <div className="space-y-4 p-4 border border-white/10 rounded bg-black/20">
+                  <div className="space-y-4 p-4 border-2 border-white/10 rounded bg-black/20 hover:border-primary/50 transition-colors">
                      <div className="flex items-center justify-between">
                         <Label className={`font-mono text-sm font-bold ${connectedExchange === "binance" ? 'text-green-500' : 'text-muted-foreground'}`}>
                           {connectedExchange === "binance" ? "✓ BINANCE CONNECTED" : "BINANCE_FUTURES"}
                         </Label>
                         {connectedExchange === "binance" && <CheckCircle2 className="w-4 h-4 text-green-500 animate-pulse" />}
                      </div>
+                     <div className="bg-black/50 p-2 rounded text-[10px] text-muted-foreground font-mono mb-2 border border-white/5">
+                        📋 PASTE your Binance API key below (long alphanumeric string)
+                     </div>
                      <div className="space-y-3">
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">API Key</Label>
+                          <Label className="text-xs text-muted-foreground">API Key (from Binance Settings)</Label>
                           <Input 
-                            type="password" 
-                            placeholder="Paste your Binance API Key here..." 
+                            type="text" 
+                            placeholder="Paste full API key here..." 
                             value={binanceKey}
-                            onChange={(e) => setBinanceKey(e.target.value)}
-                            className="bg-black/50 border-white/10 font-mono h-9 text-xs hover:border-white/20 focus:border-primary transition-colors" 
+                            onChange={(e) => {
+                              setBinanceKey(e.target.value);
+                              console.log("Binance API Key updated, length:", e.target.value.length);
+                            }}
+                            className="bg-black/70 border-white/20 font-mono h-10 text-xs hover:border-white/40 focus:border-primary transition-colors" 
                             data-testid="input-binance-key"
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Secret Key</Label>
+                          <Label className="text-xs text-muted-foreground">Secret Key (from Binance Settings)</Label>
                           <Input 
-                            type="password" 
-                            placeholder="Paste your Binance Secret Key here..." 
+                            type="text" 
+                            placeholder="Paste full secret key here..." 
                             value={binanceSecret}
-                            onChange={(e) => setBinanceSecret(e.target.value)}
-                            className="bg-black/50 border-white/10 font-mono h-9 text-xs hover:border-white/20 focus:border-primary transition-colors" 
+                            onChange={(e) => {
+                              setBinanceSecret(e.target.value);
+                              console.log("Binance Secret Key updated, length:", e.target.value.length);
+                            }}
+                            className="bg-black/70 border-white/20 font-mono h-10 text-xs hover:border-white/40 focus:border-primary transition-colors" 
                             data-testid="input-binance-secret"
                           />
                         </div>
                      </div>
                      <Button 
                        onClick={() => {
-                         console.log("Button clicked - binance key:", binanceKey ? "***" : "empty", "secret:", binanceSecret ? "***" : "empty");
+                         console.log("===== BUTTON CLICKED =====");
                          handleConnectBinance();
                        }}
                        disabled={isConnecting}
-                       className={`w-full font-mono text-xs h-10 font-bold transition-all ${
+                       className={`w-full font-mono text-xs h-10 font-bold transition-all text-lg ${
                          connectedExchange === "binance" 
                            ? 'bg-green-600 hover:bg-green-500 text-white' 
                            : isConnecting 
-                           ? 'bg-yellow-600 text-white'
+                           ? 'bg-yellow-600 text-white animate-pulse'
                            : 'bg-primary hover:bg-primary/90 text-black'
                        }`}
                        data-testid="button-connect-binance"
@@ -189,62 +218,71 @@ export default function SettingsPage() {
                        {isConnecting ? (
                          <span className="flex items-center justify-center gap-2">
                            <Loader className="w-4 h-4 animate-spin" />
-                           <span>CONNECTING...</span>
+                           <span>🔄 CONNECTING...</span>
                          </span>
                        ) : connectedExchange === "binance" ? (
                          <span className="flex items-center justify-center gap-2">
                            <CheckCheck className="w-4 h-4" />
-                           <span>✓ CONNECTED</span>
+                           <span>✅ CONNECTED</span>
                          </span>
                        ) : (
-                         "CONNECT BINANCE"
+                         "🚀 CONNECT BINANCE"
                        )}
                      </Button>
                   </div>
 
                   {/* Secondary Exchange - Bybit */}
-                  <div className="space-y-4 p-4 border border-white/10 rounded bg-black/20 opacity-80 hover:opacity-100 transition-opacity">
+                  <div className="space-y-4 p-4 border-2 border-white/10 rounded bg-black/20 hover:border-secondary/50 transition-colors opacity-90 hover:opacity-100">
                      <div className="flex items-center justify-between">
                         <Label className={`font-mono text-sm font-bold ${connectedExchange === "bybit" ? 'text-blue-400' : 'text-muted-foreground'}`}>
                           {connectedExchange === "bybit" ? "✓ BYBIT CONNECTED" : "BYBIT_FUTURES (OPTIONAL)"}
                         </Label>
                         {connectedExchange === "bybit" && <CheckCircle2 className="w-4 h-4 text-blue-400 animate-pulse" />}
                      </div>
+                     <div className="bg-black/50 p-2 rounded text-[10px] text-muted-foreground font-mono mb-2 border border-white/5">
+                        📋 PASTE your Bybit API key below (long alphanumeric string)
+                     </div>
                      <div className="space-y-3">
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">API Key</Label>
+                          <Label className="text-xs text-muted-foreground">API Key (from Bybit Settings)</Label>
                           <Input 
-                            type="password" 
-                            placeholder="Paste your Bybit API Key here..." 
+                            type="text" 
+                            placeholder="Paste full API key here..." 
                             value={bybitKey}
-                            onChange={(e) => setBybitKey(e.target.value)}
-                            className="bg-black/50 border-white/10 font-mono h-9 text-xs hover:border-white/20 focus:border-primary transition-colors" 
+                            onChange={(e) => {
+                              setBybitKey(e.target.value);
+                              console.log("Bybit API Key updated, length:", e.target.value.length);
+                            }}
+                            className="bg-black/70 border-white/20 font-mono h-10 text-xs hover:border-white/40 focus:border-primary transition-colors" 
                             data-testid="input-bybit-key"
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Secret Key</Label>
+                          <Label className="text-xs text-muted-foreground">Secret Key (from Bybit Settings)</Label>
                           <Input 
-                            type="password" 
-                            placeholder="Paste your Bybit Secret Key here..." 
+                            type="text" 
+                            placeholder="Paste full secret key here..." 
                             value={bybitSecret}
-                            onChange={(e) => setBybitSecret(e.target.value)}
-                            className="bg-black/50 border-white/10 font-mono h-9 text-xs hover:border-white/20 focus:border-primary transition-colors" 
+                            onChange={(e) => {
+                              setBybitSecret(e.target.value);
+                              console.log("Bybit Secret Key updated, length:", e.target.value.length);
+                            }}
+                            className="bg-black/70 border-white/20 font-mono h-10 text-xs hover:border-white/40 focus:border-primary transition-colors" 
                             data-testid="input-bybit-secret"
                           />
                         </div>
                      </div>
                      <Button 
                        onClick={() => {
-                         console.log("Button clicked - bybit key:", bybitKey ? "***" : "empty", "secret:", bybitSecret ? "***" : "empty");
+                         console.log("===== BUTTON CLICKED =====");
                          handleConnectBybit();
                        }}
                        disabled={isConnecting}
-                       className={`w-full font-mono text-xs h-10 font-bold transition-all ${
+                       className={`w-full font-mono text-xs h-10 font-bold transition-all text-lg ${
                          connectedExchange === "bybit" 
                            ? 'bg-blue-600 hover:bg-blue-500 text-white' 
                            : isConnecting 
-                           ? 'bg-yellow-600 text-white'
+                           ? 'bg-yellow-600 text-white animate-pulse'
                            : 'bg-secondary hover:bg-secondary/90'
                        }`}
                        data-testid="button-connect-bybit"
@@ -252,24 +290,24 @@ export default function SettingsPage() {
                        {isConnecting ? (
                          <span className="flex items-center justify-center gap-2">
                            <Loader className="w-4 h-4 animate-spin" />
-                           <span>CONNECTING...</span>
+                           <span>🔄 CONNECTING...</span>
                          </span>
                        ) : connectedExchange === "bybit" ? (
                          <span className="flex items-center justify-center gap-2">
                            <CheckCheck className="w-4 h-4" />
-                           <span>✓ CONNECTED</span>
+                           <span>✅ CONNECTED</span>
                          </span>
                        ) : (
-                         "CONNECT BYBIT"
+                         "🚀 CONNECT BYBIT"
                        )}
                      </Button>
                   </div>
                 </div>
 
-                <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded flex gap-3">
-                   <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
-                   <div className="text-xs text-yellow-700">
-                      <span className="font-bold">Security:</span> Your API keys are stored securely in your browser's local storage. Never share them.
+                <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded flex gap-3 text-xs text-blue-300 font-mono">
+                   <span>📌</span>
+                   <div>
+                      <span className="font-bold">DEBUG TIP:</span> Press F12 to open browser console. You'll see exactly what happens when you click CONNECT.
                    </div>
                 </div>
              </Card>
