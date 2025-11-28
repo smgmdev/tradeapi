@@ -24,7 +24,11 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Missing apiKey or apiSecret" });
       }
 
-      exchangeManager = new BybitManager(httpServer);
+      // Use existing manager, just connect with new credentials
+      if (!exchangeManager) {
+        exchangeManager = new BybitManager(httpServer);
+      }
+      
       const result = await exchangeManager.connect(apiKey, apiSecret);
       res.json({
         status: "CONNECTED",
