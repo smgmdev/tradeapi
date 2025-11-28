@@ -29,6 +29,41 @@ export class BybitManager {
         timestamp: Date.now(),
       }));
     });
+
+    // Start public price stream immediately (no auth needed)
+    console.log("[Bybit] Starting public price stream...");
+    this.startPublicPriceStream();
+  }
+
+  private async startPublicPriceStream() {
+    setInterval(async () => {
+      try {
+        const response = await fetch("https://api.bybit.com/v5/market/tickers?category=linear&symbol=BTCUSDT");
+        const data = await response.json();
+
+        if (data.result?.list?.[0]) {
+          const ticker = data.result.list[0];
+          this.currentPrice = parseFloat(ticker.lastPrice);
+
+          // Broadcast to all connected clients
+          this.priceSubscribers.forEach((ws) => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({
+                symbol: "BTCUSDT",
+                price: this.currentPrice,
+                bid: parseFloat(ticker.bid1Price),
+                ask: parseFloat(ticker.ask1Price),
+                volume24h: parseFloat(ticker.turnover24h || "0"),
+                percentChange: parseFloat(ticker.price24hPcnt || "0") * 100,
+                timestamp: Date.now(),
+              }));
+            }
+          });
+        }
+      } catch (error) {
+        console.error("[Bybit] Failed to fetch public ticker:", error);
+      }
+    }, 1000);
   }
 
   async connect(apiKey: string, apiSecret: string) {
