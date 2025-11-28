@@ -192,7 +192,7 @@ export function TradingChart() {
           ))}
         </div>
         <div className="flex gap-2 text-xs font-mono text-muted-foreground">
-          {binanceConnected ? (
+          {bybitConnected ? (
             <span className="text-green-500">LIVE_DATA</span>
           ) : (
             <span className="text-yellow-500">LOADING_DATA</span>
@@ -205,7 +205,7 @@ export function TradingChart() {
           <h1 className="text-9xl font-bold tracking-tighter">NEXUS</h1>
         </div>
 
-        {!binancePrice ? (
+        {!bybitPrice ? (
           <div className="text-center z-10">
             <div className="text-xl font-mono text-yellow-500 mb-2">⏳ LOADING CHART DATA</div>
             <div className="text-[10px] text-muted-foreground">Waiting for real market data...</div>
