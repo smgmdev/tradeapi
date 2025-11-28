@@ -11,23 +11,9 @@ export async function registerRoutes(
   let botRunning = false;
 
   // Initialize with Bybit only
-  const bybitKey = process.env.BYBIT_API_KEY;
-  const bybitSecret = process.env.BYBIT_API_SECRET;
-  
   console.log("[API] Initializing Bybit Manager...");
   exchangeManager = new BybitManager(httpServer);
-  
-  if (bybitKey && bybitSecret) {
-    console.log("[API] ATTEMPTING AUTO-CONNECT TO BYBIT...");
-    try {
-      const result = await exchangeManager.connect(bybitKey, bybitSecret);
-      console.log("[API] ✓ Auto-connected to Bybit Futures");
-    } catch (error: any) {
-      console.error("[API] Warning: Bybit connection failed:", error.message);
-    }
-  } else {
-    console.log("[API] No Bybit API keys available. User can connect manually in Settings.");
-  }
+  console.log("[API] Waiting for user to provide Bybit API keys in Settings...");
 
   // Connect to Bybit with API keys
   app.post("/api/exchange/connect", async (req, res) => {
