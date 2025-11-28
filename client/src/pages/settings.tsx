@@ -121,6 +121,13 @@ export default function SettingsPage() {
           </div>
         )}
 
+        <button 
+          onClick={() => alert("TEST: Button works!")}
+          className="mb-6 px-4 py-2 bg-blue-600 text-white rounded font-bold cursor-pointer hover:bg-blue-700"
+        >
+          TEST BUTTON - Click me first
+        </button>
+
         <Tabs defaultValue="api" className="w-full">
           <TabsList className="w-full justify-start bg-transparent border-b border-white/10 p-0 h-auto mb-6 gap-6">
             <TabsTrigger value="api" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary px-0 py-2 font-mono text-xs">EXCHANGE_KEYS</TabsTrigger>

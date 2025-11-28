@@ -59,9 +59,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-              <Settings className="w-4 h-4" />
-            </Button>
+            <Link href="/settings">
+              <button className="p-2 text-muted-foreground hover:text-foreground hover:bg-white/10 rounded cursor-pointer">
+                <Settings className="w-4 h-4" />
+              </button>
+            </Link>
             <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
               <Bell className="w-4 h-4" />
             </Button>
