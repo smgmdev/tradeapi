@@ -105,10 +105,14 @@ export class BinanceManager {
     console.log("[Binance] Starting price stream...");
 
     const symbols = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "SOLUSDT", "ADAUSDT", "DOGEUSDT", "AVAXUSDT", "FTMUSDT"];
+    let coinGeckoFailCount = 0;
 
     setInterval(async () => {
       try {
+        const priceData: any[] = [];
+
         // Try CoinGecko for real prices
+        let usedCoinGecko = false;
         try {
           for (const symbol of symbols) {
             try {
@@ -121,40 +125,49 @@ export class BinanceManager {
               const data = response.data[coinId];
               if (data && data.usd) {
                 this.lastCoinGeckoPrices[symbol] = data.usd;
-
-                this.priceSubscribers.forEach((ws) => {
-                  if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
-                      symbol,
-                      price: parseFloat(data.usd.toFixed(2)),
-                      percentChange: parseFloat(data.usd_24h_change?.toFixed(2) || "0"),
-                      volume24h: data.usd_24h_vol || 0,
-                      timestamp: Date.now(),
-                    }));
-                  }
+                priceData.push({
+                  symbol,
+                  price: parseFloat(data.usd.toFixed(2)),
+                  percentChange: parseFloat(data.usd_24h_change?.toFixed(2) || "0"),
+                  volume24h: data.usd_24h_vol || 0,
                 });
+                usedCoinGecko = true;
               }
             } catch (err) {
               // Continue to next symbol
             }
           }
-          return;
+          if (usedCoinGecko) {
+            coinGeckoFailCount = 0;
+            console.log(`[Binance] Got ${priceData.length} prices from CoinGecko`);
+          }
         } catch (coinGeckoError: any) {
-          console.log("[Binance] CoinGecko error:", coinGeckoError.message);
+          coinGeckoFailCount++;
+          if (coinGeckoFailCount === 1) {
+            console.log("[Binance] CoinGecko unavailable, using fallback prices");
+          }
         }
 
-        // Fallback: Send cached or mock prices
-        symbols.forEach((symbol) => {
-          const price = this.lastCoinGeckoPrices[symbol] || parseFloat(this.mockPrices[symbol]);
-          const change = (Math.random() - 0.5) * 4;
+        // Fallback: Use cached or mock prices if CoinGecko failed
+        if (priceData.length === 0) {
+          symbols.forEach((symbol) => {
+            const price = this.lastCoinGeckoPrices[symbol] || parseFloat(this.mockPrices[symbol]);
+            const change = (Math.random() - 0.5) * 4;
+            priceData.push({
+              symbol,
+              price,
+              percentChange: change,
+              volume24h: this.mockVolumes[symbol],
+            });
+          });
+        }
 
+        // Send all prices to subscribers
+        priceData.forEach((data) => {
           this.priceSubscribers.forEach((ws) => {
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({
-                symbol,
-                price,
-                percentChange: change,
-                volume24h: this.mockVolumes[symbol],
+                ...data,
                 timestamp: Date.now(),
               }));
             }
