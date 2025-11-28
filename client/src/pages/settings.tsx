@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
-import { Shield, Zap, Network, CheckCircle2, AlertCircle, Loader, CheckCheck } from "lucide-react";
+import { Shield, Zap, Network, CheckCircle2, AlertCircle, Loader, CheckCheck, X } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export default function SettingsPage() {
@@ -34,9 +34,6 @@ export default function SettingsPage() {
   }, []);
 
   const handleConnectBinance = () => {
-    console.log("🟢 BINANCE CONNECT CLICKED");
-    alert("BINANCE BUTTON CLICKED!");
-    
     if (!binanceKey.trim()) {
       alert("❌ ERROR: API Key is empty");
       setConnectionMessage("❌ ERROR: API Key is empty");
@@ -49,7 +46,7 @@ export default function SettingsPage() {
       return;
     }
 
-    alert("✅ BOTH KEYS PROVIDED - Connecting...");
+    alert("BINANCE BUTTON CLICKED!");
     setIsConnecting(true);
     setConnectionMessage("🔄 CONNECTING TO BINANCE...");
 
@@ -69,9 +66,6 @@ export default function SettingsPage() {
   };
 
   const handleConnectBybit = () => {
-    console.log("🔵 BYBIT CONNECT CLICKED");
-    alert("BYBIT BUTTON CLICKED!");
-    
     if (!bybitKey.trim()) {
       alert("❌ ERROR: API Key is empty");
       setConnectionMessage("❌ ERROR: API Key is empty");
@@ -84,7 +78,7 @@ export default function SettingsPage() {
       return;
     }
 
-    alert("✅ BOTH KEYS PROVIDED - Connecting...");
+    alert("BYBIT BUTTON CLICKED!");
     setIsConnecting(true);
     setConnectionMessage("🔄 CONNECTING TO BYBIT...");
 
@@ -101,6 +95,20 @@ export default function SettingsPage() {
       setIsConnecting(false);
       alert("✅ SUCCESS: Connected to Bybit Futures!");
     }, 1000);
+  };
+
+  const handleDisconnect = () => {
+    const confirmed = confirm(`⚠️ Disconnect from ${connectedExchange?.toUpperCase()}?\n\nYou'll need to reconnect to trade.`);
+    if (!confirmed) return;
+
+    setConnectedExchange(null);
+    setBinanceKey("");
+    setBinanceSecret("");
+    setBybitKey("");
+    setBybitSecret("");
+    localStorage.removeItem("exchange-credentials");
+    setConnectionMessage("✓ Disconnected. You can now connect to a different exchange.");
+    alert("✅ Disconnected successfully. You can now reconnect to another exchange.");
   };
 
   return (
@@ -121,12 +129,23 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <button 
-          onClick={() => alert("TEST: Button works!")}
-          className="mb-6 px-4 py-2 bg-blue-600 text-white rounded font-bold cursor-pointer hover:bg-blue-700"
-        >
-          TEST BUTTON - Click me first
-        </button>
+        {connectedExchange && (
+          <div className="mb-6 p-4 bg-green-500/10 border border-green-500/30 rounded flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              <div>
+                <div className="font-bold font-mono text-green-400">✓ CONNECTED TO {connectedExchange.toUpperCase()}</div>
+                <div className="text-xs text-green-400/70 mt-1">API keys are stored in your browser</div>
+              </div>
+            </div>
+            <button
+              onClick={handleDisconnect}
+              className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 rounded font-mono text-sm font-bold cursor-pointer transition-all flex items-center gap-2"
+            >
+              <X className="w-4 h-4" /> DISCONNECT
+            </button>
+          </div>
+        )}
 
         <Tabs defaultValue="api" className="w-full">
           <TabsList className="w-full justify-start bg-transparent border-b border-white/10 p-0 h-auto mb-6 gap-6">
@@ -140,7 +159,13 @@ export default function SettingsPage() {
              <Card className="p-6 bg-card border-white/10 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* BINANCE */}
-                  <div className="space-y-4 p-4 border-2 border-white/20 rounded bg-black/40">
+                  <div className={`space-y-4 p-4 border-2 rounded bg-black/40 transition-all ${
+                    connectedExchange === "binance" 
+                      ? 'border-green-500/50 bg-green-500/5' 
+                      : connectedExchange && connectedExchange !== "binance"
+                      ? 'border-white/10 opacity-50'
+                      : 'border-white/20 hover:border-primary/50'
+                  }`}>
                      <div className="flex items-center justify-between mb-2">
                         <Label className={`font-mono text-base font-bold ${connectedExchange === "binance" ? 'text-green-400' : 'text-white'}`}>
                           {connectedExchange === "binance" ? "✓✓✓ BINANCE CONNECTED ✓✓✓" : "BINANCE FUTURES"}
@@ -153,7 +178,8 @@ export default function SettingsPage() {
                           value={binanceKey}
                           onChange={(e) => setBinanceKey(e.target.value)}
                           placeholder="API key here..."
-                          className="bg-black/60 border-white/30 font-mono h-9 text-xs mb-3"
+                          disabled={connectedExchange === "binance"}
+                          className="bg-black/60 border-white/30 font-mono h-9 text-xs mb-3 disabled:opacity-60"
                         />
                      </div>
                      
@@ -163,31 +189,40 @@ export default function SettingsPage() {
                           value={binanceSecret}
                           onChange={(e) => setBinanceSecret(e.target.value)}
                           placeholder="Secret key here..."
-                          className="bg-black/60 border-white/30 font-mono h-9 text-xs"
+                          disabled={connectedExchange === "binance"}
+                          className="bg-black/60 border-white/30 font-mono h-9 text-xs disabled:opacity-60"
                         />
                      </div>
                      
                      <button
                        onClick={handleConnectBinance}
-                       disabled={isConnecting || connectedExchange === "binance"}
+                       disabled={isConnecting || connectedExchange === "binance" || (connectedExchange && connectedExchange !== "binance")}
                        className={`w-full font-bold text-base h-12 mt-2 rounded cursor-pointer transition-all ${
                          connectedExchange === "binance" 
-                           ? 'bg-green-600 text-white' 
+                           ? 'bg-green-600 text-white opacity-70' 
                            : isConnecting
                            ? 'bg-yellow-600 text-white animate-bounce'
+                           : connectedExchange && connectedExchange !== "binance"
+                           ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                            : 'bg-primary hover:bg-primary/80 text-black'
                        }`}
                        type="button"
                      >
-                       {isConnecting ? "🔄 CONNECTING..." : connectedExchange === "binance" ? "✅ CONNECTED" : "🚀 CONNECT BINANCE"}
+                       {isConnecting ? "🔄 CONNECTING..." : connectedExchange === "binance" ? "✅ CONNECTED" : connectedExchange ? "SWITCH TO BINANCE FIRST" : "🚀 CONNECT BINANCE"}
                      </button>
                   </div>
 
                   {/* BYBIT */}
-                  <div className="space-y-4 p-4 border-2 border-white/20 rounded bg-black/40">
+                  <div className={`space-y-4 p-4 border-2 rounded bg-black/40 transition-all ${
+                    connectedExchange === "bybit" 
+                      ? 'border-blue-500/50 bg-blue-500/5' 
+                      : connectedExchange && connectedExchange !== "bybit"
+                      ? 'border-white/10 opacity-50'
+                      : 'border-white/20 hover:border-secondary/50'
+                  }`}>
                      <div className="flex items-center justify-between mb-2">
                         <Label className={`font-mono text-base font-bold ${connectedExchange === "bybit" ? 'text-blue-400' : 'text-white'}`}>
-                          {connectedExchange === "bybit" ? "✓✓✓ BYBIT CONNECTED ✓✓✓" : "BYBIT FUTURES"}
+                          {connectedExchange === "bybit" ? "✓✓✓ BYBIT CONNECTED ✓✓✓" : "BYBIT FUTURES (OPTIONAL)"}
                         </Label>
                      </div>
                      
@@ -197,7 +232,8 @@ export default function SettingsPage() {
                           value={bybitKey}
                           onChange={(e) => setBybitKey(e.target.value)}
                           placeholder="API key here..."
-                          className="bg-black/60 border-white/30 font-mono h-9 text-xs mb-3"
+                          disabled={connectedExchange === "bybit"}
+                          className="bg-black/60 border-white/30 font-mono h-9 text-xs mb-3 disabled:opacity-60"
                         />
                      </div>
                      
@@ -207,23 +243,26 @@ export default function SettingsPage() {
                           value={bybitSecret}
                           onChange={(e) => setBybitSecret(e.target.value)}
                           placeholder="Secret key here..."
-                          className="bg-black/60 border-white/30 font-mono h-9 text-xs"
+                          disabled={connectedExchange === "bybit"}
+                          className="bg-black/60 border-white/30 font-mono h-9 text-xs disabled:opacity-60"
                         />
                      </div>
                      
                      <button
                        onClick={handleConnectBybit}
-                       disabled={isConnecting || connectedExchange === "bybit"}
+                       disabled={isConnecting || connectedExchange === "bybit" || (connectedExchange && connectedExchange !== "bybit")}
                        className={`w-full font-bold text-base h-12 mt-2 rounded cursor-pointer transition-all ${
                          connectedExchange === "bybit" 
-                           ? 'bg-blue-600 text-white' 
+                           ? 'bg-blue-600 text-white opacity-70' 
                            : isConnecting
                            ? 'bg-yellow-600 text-white animate-bounce'
+                           : connectedExchange && connectedExchange !== "bybit"
+                           ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                            : 'bg-secondary hover:bg-secondary/80'
                        }`}
                        type="button"
                      >
-                       {isConnecting ? "🔄 CONNECTING..." : connectedExchange === "bybit" ? "✅ CONNECTED" : "🚀 CONNECT BYBIT"}
+                       {isConnecting ? "🔄 CONNECTING..." : connectedExchange === "bybit" ? "✅ CONNECTED" : connectedExchange ? "SWITCH TO BYBIT FIRST" : "🚀 CONNECT BYBIT"}
                      </button>
                   </div>
                 </div>
