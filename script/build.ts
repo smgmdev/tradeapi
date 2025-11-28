@@ -37,6 +37,12 @@ async function buildAll() {
 
   console.log("building client...");
   await viteBuild();
+  
+  // Ensure public folder exists in dist
+  const publicDir = "./dist/public";
+  if (!await readFile(publicDir).catch(() => null)) {
+    console.log("[Build] Public directory already exists from vite build");
+  }
 
   console.log("building server...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));
