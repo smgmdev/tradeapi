@@ -1,10 +1,9 @@
-import { createRequire } from "module";
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server as HTTPServer } from "http";
 import axios from "axios";
+import BinanceClient from "binance-api-node";
 
-const require = createRequire(import.meta.url);
-const BinanceApi = require("binance-api-node").default;
+const BinanceApi = BinanceClient;
 
 export class BinanceManager {
   private client: any = null;

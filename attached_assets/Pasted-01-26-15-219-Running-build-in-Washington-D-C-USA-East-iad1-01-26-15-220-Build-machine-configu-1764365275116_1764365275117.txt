@@ -1,0 +1,50 @@
+01:26:15.219 Running build in Washington, D.C., USA (East) – iad1
+01:26:15.220 Build machine configuration: 2 cores, 8 GB
+01:26:15.230 Cloning github.com/smgmdev/tradeapi (Branch: main, Commit: 08de1f5)
+01:26:15.231 Skipping build cache, deployment was triggered without cache.
+01:26:15.546 Cloning completed: 316.000ms
+01:26:16.046 Running "vercel build"
+01:26:16.443 Vercel CLI 48.12.0
+01:26:17.105 Installing dependencies...
+01:26:21.152 npm warn deprecated abab@2.0.6: Use your platform's native atob() and btoa() methods instead
+01:26:21.925 npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+01:26:21.945 npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+01:26:28.325 
+01:26:28.326 added 620 packages in 11s
+01:26:28.326 
+01:26:28.326 54 packages are looking for funding
+01:26:28.326   run `npm fund` for details
+01:26:28.391 Running "npm run build"
+01:26:28.515 
+01:26:28.516 > rest-express@1.0.0 build
+01:26:28.516 > tsx script/build.ts
+01:26:28.516 
+01:26:29.363 building client...
+01:26:29.580 [36mvite v7.1.12 [32mbuilding for production...[36m[39m
+01:26:29.824 transforming...
+01:26:32.763 [32m✓[39m 1774 modules transformed.
+01:26:33.005 rendering chunks...
+01:26:33.011 [meta-images] no Replit deployment domain found, skipping meta tag updates
+01:26:33.015 computing gzip size...
+01:26:33.032 [2m../dist/public/[22m[32mindex.html                 [39m[1m[2m  1.47 kB[22m[1m[22m[2m │ gzip:   0.60 kB[22m
+01:26:33.033 [2m../dist/public/[22m[2massets/[22m[35mindex-Bgbjs1dv.css  [39m[1m[2m 94.92 kB[22m[1m[22m[2m │ gzip:  15.69 kB[22m
+01:26:33.033 [2m../dist/public/[22m[2massets/[22m[36mindex-CydOFTkN.js   [39m[1m[2m328.84 kB[22m[1m[22m[2m │ gzip: 105.10 kB[22m
+01:26:33.033 [32m✓ built in 3.25s[39m
+01:26:33.033 building server...
+01:26:33.058 ▲ [WARNING] "import.meta" is not available with the "cjs" output format and will be empty [empty-import-meta]
+01:26:33.059 
+01:26:33.059     server/binance.ts:6:30:
+01:26:33.059       6 │ const require = createRequire(import.meta.url);
+01:26:33.059         ╵                               ~~~~~~~~~~~
+01:26:33.059 
+01:26:33.060   You need to set the output format to "esm" for "import.meta" to work correctly.
+01:26:33.060 
+01:26:33.177 1 warning
+01:26:33.178 
+01:26:33.178   dist/index.cjs  967.2kb
+01:26:33.179 
+01:26:33.179 ⚡ Done in 143ms
+01:26:33.299 Build Completed in /vercel/output [16s]
+01:26:33.396 Deploying outputs...
+01:26:37.295 Deployment completed
+01:26:37.930 Creating build cache...
