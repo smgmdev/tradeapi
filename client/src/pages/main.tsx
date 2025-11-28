@@ -20,6 +20,7 @@ interface PriceUpdate {
 export function MainPage() {
   const [apiKey, setApiKey] = useState("");
   const [apiSecret, setApiSecret] = useState("");
+  const [exchange, setExchange] = useState<"bybit" | "binance">("bybit");
   const [isTestnet, setIsTestnet] = useState(true);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -80,7 +81,12 @@ export function MainPage() {
       const res = await fetch("/api/credentials/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, apiSecret, isTestnet }),
+        body: JSON.stringify({ 
+          apiKey, 
+          apiSecret, 
+          exchange,
+          isTestnet: exchange === "bybit" ? isTestnet : false 
+        }),
       });
 
       if (!res.ok) {
@@ -159,12 +165,25 @@ export function MainPage() {
             {!connected ? (
               <form onSubmit={handleConnect} className="space-y-3">
                 <div>
+                  <label className="block text-xs mb-1">Exchange</label>
+                  <select
+                    value={exchange}
+                    onChange={(e) => setExchange(e.target.value as "bybit" | "binance")}
+                    disabled={loading}
+                    className="w-full px-2 py-1 border border-black text-xs bg-white"
+                  >
+                    <option value="bybit">Bybit</option>
+                    <option value="binance">Binance</option>
+                  </select>
+                </div>
+
+                <div>
                   <label className="block text-xs mb-1">API Key</label>
                   <input
                     type="text"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Enter your Bybit API key"
+                    placeholder={`Enter your ${exchange.toUpperCase()} API key`}
                     className="w-full px-2 py-1 border border-black text-xs bg-white"
                     disabled={loading}
                   />
@@ -176,25 +195,27 @@ export function MainPage() {
                     type="password"
                     value={apiSecret}
                     onChange={(e) => setApiSecret(e.target.value)}
-                    placeholder="Enter your Bybit API secret"
+                    placeholder={`Enter your ${exchange.toUpperCase()} API secret`}
                     className="w-full px-2 py-1 border border-black text-xs bg-white"
                     disabled={loading}
                   />
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="testnet"
-                    checked={isTestnet}
-                    onChange={(e) => setIsTestnet(e.target.checked)}
-                    disabled={loading}
-                    className="w-4 h-4"
-                  />
-                  <label htmlFor="testnet" className="text-xs">
-                    Use Testnet
-                  </label>
-                </div>
+                {exchange === "bybit" && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="testnet"
+                      checked={isTestnet}
+                      onChange={(e) => setIsTestnet(e.target.checked)}
+                      disabled={loading}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="testnet" className="text-xs">
+                      Use Testnet
+                    </label>
+                  </div>
+                )}
 
                 <button
                   type="submit"
@@ -213,8 +234,13 @@ export function MainPage() {
 
                 <div className="text-xs space-y-1 bg-white p-2 border border-black">
                   <div>
-                    <span className="opacity-70">Environment:</span> {isTestnet ? "TESTNET" : "LIVE"}
+                    <span className="opacity-70">Exchange:</span> {exchange.toUpperCase()}
                   </div>
+                  {exchange === "bybit" && (
+                    <div>
+                      <span className="opacity-70">Network:</span> {isTestnet ? "TESTNET" : "LIVE"}
+                    </div>
+                  )}
                   <div>
                     <span className="opacity-70">Pairs Loaded:</span> {pairs.length}
                   </div>

@@ -3,50 +3,59 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertCredentialSchema } from "@shared/schema";
 import { BybitManager } from "./bybit";
+import { BinanceManager } from "./binance";
 
-let exchangeManager: BybitManager | null = null;
+let bybitManager: BybitManager | null = null;
+let binanceManager: BinanceManager | null = null;
+let activeExchange: "bybit" | "binance" = "bybit";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   
+  // Initialize managers
+  bybitManager = new BybitManager(httpServer, true);
+  binanceManager = new BinanceManager(httpServer);
+
   // Connect API keys
   app.post("/api/credentials/connect", async (req, res) => {
     try {
-      const parsed = insertCredentialSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid credentials format" });
-      }
-
-      const { apiKey, apiSecret, isTestnet } = parsed.data;
+      const { apiKey, apiSecret, exchange = "bybit", isTestnet = true } = req.body;
       
-      // Initialize manager if needed
-      if (!exchangeManager) {
-        exchangeManager = new BybitManager(httpServer, isTestnet);
+      if (!apiKey || !apiSecret) {
+        return res.status(400).json({ error: "Missing API credentials" });
       }
 
-      // Try to connect and fetch pairs
       try {
-        await exchangeManager.connect(apiKey, apiSecret, isTestnet);
-        
-        // Save credentials
-        await storage.saveCredential({ apiKey, apiSecret, isTestnet });
-        
-        res.json({
-          status: "connected",
-          message: "Successfully connected to Bybit",
-          isTestnet,
-        });
+        if (exchange === "binance") {
+          activeExchange = "binance";
+          await binanceManager!.connect(apiKey, apiSecret);
+          await storage.saveCredential({ apiKey, apiSecret, isTestnet: false });
+          res.json({
+            status: "connected",
+            message: "Successfully connected to Binance",
+            exchange: "binance",
+          });
+        } else {
+          activeExchange = "bybit";
+          await bybitManager!.connect(apiKey, apiSecret, isTestnet);
+          await storage.saveCredential({ apiKey, apiSecret, isTestnet });
+          res.json({
+            status: "connected",
+            message: "Successfully connected to Bybit",
+            exchange: "bybit",
+            isTestnet,
+          });
+        }
       } catch (error: any) {
         if (error.message.includes("Forbidden")) {
-          // Still save but warn about geo-blocking
           await storage.saveCredential({ apiKey, apiSecret, isTestnet });
           res.status(202).json({
             status: "connected_with_warning",
-            message: "Keys saved. Real-time data limited due to network restrictions.",
-            isTestnet,
-            warning: "This server is geo-blocked from Bybit API",
+            message: "Keys saved. Showing real-time market data from CoinGecko.",
+            exchange,
+            warning: "This server has network restrictions for exchange APIs",
           });
         } else {
           throw error;
@@ -60,11 +69,13 @@ export async function registerRoutes(
   // Fetch trading pairs
   app.get("/api/trading-pairs", async (req, res) => {
     try {
-      if (!exchangeManager || !exchangeManager.isConnected()) {
-        return res.status(400).json({ error: "Not connected to Bybit" });
+      const manager = activeExchange === "binance" ? binanceManager : bybitManager;
+      
+      if (!manager || !manager.isConnected()) {
+        return res.status(400).json({ error: `Not connected to ${activeExchange}` });
       }
 
-      const pairs = await exchangeManager.getTradingPairs();
+      const pairs = await manager.getTradingPairs();
       
       // Save to storage
       const insertPairs = pairs.map(p => ({
@@ -78,7 +89,7 @@ export async function registerRoutes(
       
       await storage.updateTradingPairs(insertPairs);
       
-      res.json({ pairs });
+      res.json({ pairs, exchange: activeExchange });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -92,6 +103,11 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // Get current exchange
+  app.get("/api/exchange/current", (req, res) => {
+    res.json({ exchange: activeExchange });
   });
 
   return httpServer;
