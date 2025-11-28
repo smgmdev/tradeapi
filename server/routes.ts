@@ -1,166 +1,97 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { insertCredentialSchema } from "@shared/schema";
 import { BybitManager } from "./bybit";
+
+let exchangeManager: BybitManager | null = null;
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   
-  let exchangeManager: BybitManager | null = null;
-  let botRunning = false;
-
-  // Initialize with Bybit Testnet
-  console.log("[API] Initializing Bybit Manager (TESTNET)...");
-  exchangeManager = new BybitManager(httpServer, true);
-  console.log("[API] Ready to connect Bybit Testnet credentials...");
-
-  // Connect to Bybit with API keys
-  app.post("/api/exchange/connect", async (req, res) => {
+  // Connect API keys
+  app.post("/api/credentials/connect", async (req, res) => {
     try {
-      const { apiKey, apiSecret, isTestnet = true } = req.body;
-
-      if (!apiKey || !apiSecret) {
-        return res.status(400).json({ error: "Missing apiKey or apiSecret" });
+      const parsed = insertCredentialSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid credentials format" });
       }
 
-      // Use existing manager, just connect with new credentials
+      const { apiKey, apiSecret, isTestnet } = parsed.data;
+      
+      // Initialize manager if needed
       if (!exchangeManager) {
         exchangeManager = new BybitManager(httpServer, isTestnet);
       }
-      
+
+      // Try to connect and fetch pairs
       try {
-        const result = await exchangeManager.connect(apiKey, apiSecret, isTestnet);
-        const env = isTestnet ? "BYBIT TESTNET" : "BYBIT LIVE";
+        await exchangeManager.connect(apiKey, apiSecret, isTestnet);
+        
+        // Save credentials
+        await storage.saveCredential({ apiKey, apiSecret, isTestnet });
+        
         res.json({
-          status: "CONNECTED",
-          exchange: "bybit",
-          environment: isTestnet ? "TESTNET" : "LIVE",
-          message: `Successfully connected to ${env}`,
-          accountType: result.account,
-          balances: result.balances,
+          status: "connected",
+          message: "Successfully connected to Bybit",
+          isTestnet,
         });
-      } catch (connectError: any) {
-        // If it's a Forbidden error, still accept the keys but warn about network issues
-        if (connectError.message.includes("Forbidden")) {
-          console.warn("[API] Bybit returned Forbidden, but accepting keys due to possible network restrictions");
-          res.json({
-            status: "CONNECTED",
-            exchange: "bybit",
-            message: "Keys accepted. You may see loading states due to network restrictions on this server.",
-            accountType: "FUTURES",
-            balances: 0,
-            warning: "Network restrictions detected - real-time data may be limited",
+      } catch (error: any) {
+        if (error.message.includes("Forbidden")) {
+          // Still save but warn about geo-blocking
+          await storage.saveCredential({ apiKey, apiSecret, isTestnet });
+          res.status(202).json({
+            status: "connected_with_warning",
+            message: "Keys saved. Real-time data limited due to network restrictions.",
+            isTestnet,
+            warning: "This server is geo-blocked from Bybit API",
           });
         } else {
-          throw connectError;
+          throw error;
         }
       }
     } catch (error: any) {
-      console.error("[API] Connection error:", error);
-      res.status(500).json({ error: error.message || "Failed to connect to Bybit" });
-    }
-  });
-
-  // Get current market price (REAL from exchange)
-  app.get("/api/market/price/:symbol", async (req, res) => {
-    try {
-      const { symbol } = req.params;
-      const priceData = await exchangeManager!.getPrice(symbol || "BTCUSDT");
-      res.json(priceData);
-    } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  // Start scalping bot
-  app.post("/api/bot/start", async (req, res) => {
+  // Fetch trading pairs
+  app.get("/api/trading-pairs", async (req, res) => {
     try {
-      if (!exchangeManager!.isConnected()) {
-        return res.status(400).json({ error: "Not connected to exchange. Connect API keys first." });
+      if (!exchangeManager || !exchangeManager.isConnected()) {
+        return res.status(400).json({ error: "Not connected to Bybit" });
       }
 
-      botRunning = true;
-      console.log("[API] ✓ Scalping bot started");
-
-      res.json({
-        status: "BOT_STARTED",
-        message: "Scalping bot is now running with real price data",
-        symbol: "BTCUSDT",
-        strategy: "momentum_scalper",
-        takeProfit: 1.5,
-        stopLoss: 0.5,
-        antiManipulation: true,
-      });
+      const pairs = await exchangeManager.getTradingPairs();
+      
+      // Save to storage
+      const insertPairs = pairs.map(p => ({
+        symbol: p.symbol,
+        category: p.category,
+        lastPrice: p.lastPrice,
+        change24h: p.change24h || "0",
+        volume24h: p.volume24h || "0",
+        timestamp: new Date().toISOString(),
+      }));
+      
+      await storage.updateTradingPairs(insertPairs);
+      
+      res.json({ pairs });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  // Stop bot
-  app.post("/api/bot/stop", (req, res) => {
-    botRunning = false;
-    console.log("[API] ✓ Scalping bot stopped");
-    res.json({ status: "BOT_STOPPED", message: "Bot has been stopped" });
-  });
-
-  // Get bot status
-  app.get("/api/bot/status", async (req, res) => {
+  // Get stored trading pairs
+  app.get("/api/trading-pairs/cached", async (req, res) => {
     try {
-      const positions = await exchangeManager!.getOpenPositions();
-      res.json({
-        running: botRunning,
-        connected: exchangeManager!.isConnected(),
-        currentPrice: exchangeManager!.getCurrentPrice(),
-        openPositions: positions.length,
-        positions: positions.map((p: any) => ({
-          symbol: p.symbol || "BTCUSDT",
-          side: p.positionSide || p.side,
-          size: p.positionAmt || p.size,
-          entryPrice: p.entryPrice,
-          pnl: p.unRealizedProfit,
-          pnlPercent: p.percentage,
-        })),
-      });
-    } catch (error: any) {
-      res.json({
-        running: botRunning,
-        connected: exchangeManager!.isConnected(),
-        error: error.message,
-      });
-    }
-  });
-
-  // Get account info - REAL DATA from exchange
-  app.get("/api/account", async (req, res) => {
-    try {
-      if (!exchangeManager!.isConnected()) {
-        return res.status(400).json({ error: "Not connected to exchange" });
-      }
-
-      const accountInfo = await exchangeManager!.getAccountInfo();
-      const currentPrice = exchangeManager!.getCurrentPrice();
-      res.json({
-        connected: true,
-        price: currentPrice,
-        accountType: accountInfo.accountType,
-        balances: accountInfo.balances,
-        totalWalletBalance: accountInfo.totalWalletBalance,
-        totalUnrealizedProfit: accountInfo.totalUnrealizedProfit,
-        timestamp: Date.now(),
-      });
+      const pairs = await storage.getTradingPairs();
+      res.json({ pairs });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
-  });
-
-  // Health check
-  app.get("/api/health", (req, res) => {
-    res.json({
-      status: "healthy",
-      binance: binanceManager!.isConnected() ? "connected" : "disconnected",
-      botRunning,
-    });
   });
 
   return httpServer;

@@ -1,37 +1,35 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { type Credential, type InsertCredential, type TradingPair, type InsertTradingPair } from "@shared/schema";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getCredential(id: string): Promise<Credential | undefined>;
+  saveCredential(credential: InsertCredential): Promise<Credential>;
+  getTradingPairs(): Promise<TradingPair[]>;
+  updateTradingPairs(pairs: InsertTradingPair[]): Promise<void>;
 }
 
+// In-memory storage for now (until DB is needed)
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private credentials: Map<string, Credential> = new Map();
+  private pairs: TradingPair[] = [];
 
-  constructor() {
-    this.users = new Map();
+  async getCredential(id: string): Promise<Credential | undefined> {
+    return this.credentials.get(id);
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async saveCredential(credential: InsertCredential): Promise<Credential> {
+    const id = Math.random().toString(36).slice(2);
+    const saved: Credential = { id, ...credential };
+    this.credentials.set(id, saved);
+    return saved;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async getTradingPairs(): Promise<TradingPair[]> {
+    return this.pairs;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async updateTradingPairs(pairs: InsertTradingPair[]): Promise<void> {
+    const withIds = pairs.map((p, i) => ({ id: String(i), ...p } as TradingPair));
+    this.pairs = withIds;
   }
 }
 
