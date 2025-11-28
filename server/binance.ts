@@ -1,9 +1,21 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server as HTTPServer } from "http";
 import axios from "axios";
-import BinanceClient from "binance-api-node";
 
-const BinanceApi = BinanceClient;
+let BinanceApi: any = null;
+
+// Dynamically import binance-api-node at runtime to avoid import.meta issues
+async function initBinanceApi() {
+  if (!BinanceApi) {
+    try {
+      const module = await import("binance-api-node");
+      BinanceApi = module.default || module;
+    } catch (err) {
+      console.error("[Binance] Failed to load binance-api-node:", err);
+    }
+  }
+  return BinanceApi;
+}
 
 export class BinanceManager {
   private client: any = null;
@@ -33,11 +45,12 @@ export class BinanceManager {
     this.apiSecret = apiSecret;
 
     try {
-      if (typeof BinanceApi !== "function") {
+      const BinanceModule = await initBinanceApi();
+      if (typeof BinanceModule !== "function") {
         throw new Error("BinanceApi module not properly loaded");
       }
       
-      this.client = BinanceApi({
+      this.client = BinanceModule({
         apiKey: apiKey,
         apiSecret: apiSecret,
       });
