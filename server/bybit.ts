@@ -89,7 +89,50 @@ export class BybitManager {
 
     setInterval(async () => {
       try {
-        // Always try CoinGecko first (free, no geo-blocking, real market data)
+        // Priority 1: Try Bybit if API keys are connected
+        if (this.client) {
+          try {
+            // Fetch all symbols at once from Bybit
+            let successCount = 0;
+            for (const symbol of symbols) {
+              try {
+                const ticker = await this.client.getTickers({
+                  category: "linear",
+                  symbol,
+                });
+
+                if (ticker.result?.list?.[0]) {
+                  const data = ticker.result.list[0];
+                  const price = parseFloat(data.lastPrice);
+
+                  this.priceSubscribers.forEach((ws) => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                      ws.send(JSON.stringify({
+                        symbol,
+                        price,
+                        percentChange: parseFloat(data.price24hPcnt || "0") * 100,
+                        volume24h: parseFloat(data.turnover24h || "0"),
+                        timestamp: Date.now(),
+                      }));
+                    }
+                  });
+                  successCount++;
+                }
+              } catch (err) {
+                // Continue to next symbol on individual failures
+              }
+            }
+
+            if (successCount > 0) {
+              console.log(`[Bybit] Streamed ${successCount}/${symbols.length} symbols`);
+              return;
+            }
+          } catch (bybitError: any) {
+            console.log("[Bybit] API unavailable, switching to CoinGecko");
+          }
+        }
+
+        // Priority 2: Try CoinGecko (free, no API key needed)
         try {
           const coinIds = symbols.map((s) => this.coinGeckoMap[s]).join(",");
           const response = await axios.get(
@@ -118,41 +161,10 @@ export class BybitManager {
           });
           return;
         } catch (coinGeckoError: any) {
-          console.error("[CoinGecko] Failed:", coinGeckoError.message);
+          console.log("[CoinGecko] API unavailable");
         }
 
-        // Fallback: Try Bybit if available
-        if (this.client) {
-          try {
-            const symbol = symbols[Math.floor(Math.random() * symbols.length)];
-            const ticker = await this.client.getTickers({
-              category: "linear",
-              symbol,
-            });
-
-            if (ticker.result?.list?.[0]) {
-              const data = ticker.result.list[0];
-              const price = parseFloat(data.lastPrice);
-
-              this.priceSubscribers.forEach((ws) => {
-                if (ws.readyState === WebSocket.OPEN) {
-                  ws.send(JSON.stringify({
-                    symbol,
-                    price,
-                    percentChange: parseFloat(data.price24hPcnt || "0") * 100,
-                    volume24h: parseFloat(data.turnover24h || "0"),
-                    timestamp: Date.now(),
-                  }));
-                }
-              });
-            }
-            return;
-          } catch (bybitError: any) {
-            console.error("[Bybit] Failed:", bybitError.message);
-          }
-        }
-
-        // Last resort: send cached CoinGecko prices
+        // Priority 3: Send cached CoinGecko prices if available
         symbols.forEach((symbol) => {
           if (this.lastCoinGeckoPrices[symbol]) {
             this.priceSubscribers.forEach((ws) => {
@@ -171,7 +183,7 @@ export class BybitManager {
       } catch (error: any) {
         console.error("[Stream] Error:", error.message);
       }
-    }, 2000); // Poll every 2 seconds (CoinGecko free tier: 10-50 calls/min)
+    }, 2000);
   }
 
   async connect(apiKey: string, apiSecret: string, isTestnet: boolean = false) {
