@@ -14,15 +14,30 @@ export async function registerRoutes(
   binanceManager = new BinanceManager(httpServer);
 
   // Auto-connect to Binance with environment variables
+  console.log("[API] DEBUG: Checking for BINANCE_API_KEY:", !!process.env.BINANCE_API_KEY);
+  console.log("[API] DEBUG: Checking for BINANCE_API_SECRET:", !!process.env.BINANCE_API_SECRET);
+  
   const apiKey = process.env.BINANCE_API_KEY;
   const apiSecret = process.env.BINANCE_API_SECRET;
+  
+  console.log("[API] DEBUG: apiKey value length:", apiKey ? apiKey.length : 0);
+  console.log("[API] DEBUG: apiSecret value length:", apiSecret ? apiSecret.length : 0);
+  
   if (apiKey && apiSecret) {
+    console.log("[API] ATTEMPTING AUTO-CONNECT TO BINANCE...");
     try {
-      await binanceManager.connect(apiKey, apiSecret);
+      console.log("[API] Calling binanceManager.connect()...");
+      const result = await binanceManager.connect(apiKey, apiSecret);
       console.log("[API] ✓ Auto-connected to Binance with API credentials");
+      console.log("[API] Connection result:", result);
     } catch (error: any) {
-      console.error("[API] Failed to auto-connect to Binance:", error.message);
+      console.error("[API] ❌ FAILED TO AUTO-CONNECT");
+      console.error("[API] Error message:", error.message);
+      console.error("[API] Error stack:", error.stack);
+      console.error("[API] Full error:", error);
     }
+  } else {
+    console.error("[API] ❌ MISSING ENV VARS - apiKey:", !!apiKey, "apiSecret:", !!apiSecret);
   }
 
   // Connect to Binance with API keys
