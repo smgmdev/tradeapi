@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine, ComposedChart, Bar } from "recharts";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Maximize2, Crosshair, TrendingUp, BarChart, Zap, AlertCircle } from "lucide-react";
+import { Maximize2, Crosshair, TrendingUp, BarChart, Zap, AlertCircle, CheckCircle2 } from "lucide-react";
 
 type Timeframe = "1s" | "5s" | "15s" | "1m" | "5m" | "10m" | "15m" | "30m";
 
@@ -11,8 +11,21 @@ export function TradingChart() {
   const [currentPrice, setCurrentPrice] = useState(34284.52);
   const [priceChange, setPriceChange] = useState(0);
   const [timeframe, setTimeframe] = useState<Timeframe>("1s");
+  const [isConnected, setIsConnected] = useState(false);
 
-  // Generate data based on selected timeframe
+  // Check if Binance is connected
+  useEffect(() => {
+    const stored = localStorage.getItem("exchange-credentials");
+    if (stored) {
+      try {
+        const creds = JSON.parse(stored);
+        if (creds.binanceKey && creds.binanceSecret && creds.connectedExchange === "binance") {
+          setIsConnected(true);
+        }
+      } catch (e) {}
+    }
+  }, []);
+
   const generateChartData = (tf: Timeframe) => {
     const intervals: Record<Timeframe, number> = {
       "1s": 1000,
@@ -26,26 +39,12 @@ export function TradingChart() {
     };
 
     const candleCount: Record<Timeframe, number> = {
-      "1s": 60,    // 60 seconds
-      "5s": 60,    // 5 minutes
-      "15s": 60,   // 15 minutes
-      "1m": 60,    // 1 hour
-      "5m": 60,    // 5 hours
-      "10m": 48,   // 8 hours
-      "15m": 96,   // 24 hours
-      "30m": 96,   // 48 hours
+      "1s": 60, "5s": 60, "15s": 60, "1m": 60, "5m": 60, "10m": 48, "15m": 96, "30m": 96,
     };
 
     const count = candleCount[tf];
     const volatility: Record<Timeframe, number> = {
-      "1s": 10,
-      "5s": 20,
-      "15s": 30,
-      "1m": 50,
-      "5m": 100,
-      "10m": 150,
-      "15m": 200,
-      "30m": 300,
+      "1s": 10, "5s": 20, "15s": 30, "1m": 50, "5m": 100, "10m": 150, "15m": 200, "30m": 300,
     };
 
     return Array.from({ length: count }, (_, i) => {
@@ -65,14 +64,7 @@ export function TradingChart() {
   const formatTime = (index: number, tf: Timeframe) => {
     const now = new Date();
     const intervals: Record<Timeframe, number> = {
-      "1s": 1,
-      "5s": 5,
-      "15s": 15,
-      "1m": 60,
-      "5m": 300,
-      "10m": 600,
-      "15m": 900,
-      "30m": 1800,
+      "1s": 1, "5s": 5, "15s": 15, "1m": 60, "5m": 300, "10m": 600, "15m": 900, "30m": 1800,
     };
 
     const offsetMs = index * intervals[tf] * 1000;
@@ -87,17 +79,14 @@ export function TradingChart() {
     }
   };
 
-  // Initialize and update chart based on timeframe
   useEffect(() => {
     const initialData = generateChartData(timeframe);
     setChartData(initialData);
 
-    // For 1s and 5s, update in real-time
     if (["1s", "5s"].includes(timeframe)) {
       const updateInterval = timeframe === "1s" ? 1000 : 5000;
       const interval = setInterval(() => {
         setChartData(prev => {
-          const now = new Date();
           const basePrice = 34200;
           const newCandle = {
             time: formatTime(0, timeframe),
@@ -118,7 +107,6 @@ export function TradingChart() {
 
       return () => clearInterval(interval);
     } else {
-      // For other timeframes, just update the price display
       const lastCandle = initialData[initialData.length - 1];
       setCurrentPrice(lastCandle.close);
       setPriceChange(lastCandle.close - 34284.52);
@@ -133,8 +121,16 @@ export function TradingChart() {
           <span>SCALP_TERMINAL: BTCUSDT.P | TIMEFRAME: {timeframe.toUpperCase()}</span>
         </div>
         <div className="flex gap-4 text-[10px]">
-          <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/20 rounded text-yellow-600">
-            <AlertCircle className="w-3 h-3" /> SIMULATED_DATA (Connect keys for real prices)
+          <span className="flex items-center gap-1">
+            {isConnected ? (
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded text-green-600">
+                <CheckCircle2 className="w-3 h-3" /> BINANCE_CONNECTED
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/20 rounded text-yellow-600">
+                <AlertCircle className="w-3 h-3" /> SIMULATED_DATA
+              </span>
+            )}
           </span>
           <span>PRICE: <span className="text-primary font-bold">${currentPrice.toFixed(2)}</span></span>
           <span className={priceChange >= 0 ? 'text-green-500' : 'text-red-500'}>{priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}</span>
@@ -232,7 +228,7 @@ export function TradingChart() {
 
       <div className="p-2 bg-black border-t border-white/10 text-[10px] font-mono text-muted-foreground flex justify-between">
         <span>OHLC: O:{chartData[chartData.length-1]?.open?.toFixed(2)} H:{chartData[chartData.length-1]?.high?.toFixed(2)} L:{chartData[chartData.length-1]?.low?.toFixed(2)} C:{chartData[chartData.length-1]?.close?.toFixed(2)}</span>
-        <span>VOL: {(chartData[chartData.length-1]?.volume || 0).toFixed(0)} | LAST_TICK: {new Date().toLocaleTimeString()}</span>
+        <span>VOL: {(chartData[chartData.length-1]?.volume || 0).toFixed(0)} | {isConnected ? "LIVE" : "SIMULATED"}</span>
       </div>
     </Card>
   );

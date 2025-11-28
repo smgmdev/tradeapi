@@ -9,9 +9,13 @@ interface LogEntry {
   message: string;
 }
 
-export function TerminalLog() {
+interface TerminalLogProps {
+  isBotRunning?: boolean;
+}
+
+export function TerminalLog({ isBotRunning }: TerminalLogProps) {
   const [logs, setLogs] = useState<LogEntry[]>([
-    { id: 1, timestamp: "16:42:01", type: "INFO", message: "INIT_ANTI_MANIPULATION_ENGINE" },
+    { id: 1, timestamp: "16:42:01", type: "INFO", message: isBotRunning ? "BOT_STARTED >> ANALYZING_MARKETS" : "INIT_ANTI_MANIPULATION_ENGINE" },
     { id: 2, timestamp: "16:42:01", type: "INFO", message: "CONNECTING_WS_STREAM" },
     { id: 3, timestamp: "16:42:02", type: "EXEC", message: "AUTH_HANDSHAKE_SUCCESS" },
     { id: 4, timestamp: "16:42:05", type: "ALGO", message: "LOADING_MODEL >> MM_TRAP_DETECTOR_V2.bin" },
@@ -21,6 +25,7 @@ export function TerminalLog() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!isBotRunning) return;
     const interval = setInterval(() => {
       const types: LogEntry['type'][] = ["INFO", "ALGO", "EXEC", "WARN", "SMART"];
       const msgs = [
@@ -55,7 +60,7 @@ export function TerminalLog() {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isBotRunning]);
 
   useEffect(() => {
     if (scrollRef.current) {
