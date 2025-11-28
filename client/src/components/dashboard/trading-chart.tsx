@@ -167,7 +167,7 @@ export function TradingChart() {
             <div className="text-xl font-mono text-yellow-500 mb-2">⏳ LOADING CHART DATA</div>
             <div className="text-[10px] text-muted-foreground">Waiting for real market data...</div>
           </div>
-        ) : chartData.length > 0 && (
+        ) : chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
