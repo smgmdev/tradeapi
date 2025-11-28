@@ -4,14 +4,46 @@ import { TradingChart } from "@/components/dashboard/trading-chart";
 import { PositionTable } from "@/components/dashboard/position-table";
 import { TerminalLog } from "@/components/dashboard/terminal-log";
 import { ApiKeysModal } from "@/components/settings/api-keys-modal";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Settings, Play, Pause, Power, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Settings, Play, Pause, Power, AlertCircle, Zap } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 export default function Dashboard() {
   const [showKeysModal, setShowKeysModal] = useState(false);
-  const [isBotRunning, setIsBotRunning] = useState(true);
+  const [isBotRunning, setIsBotRunning] = useState(false);
+  const [hasKeys, setHasKeys] = useState(false);
+  const [exchangeName, setExchangeName] = useState("");
+
+  useEffect(() => {
+    const stored = localStorage.getItem("exchange-credentials");
+    if (stored) {
+      try {
+        const creds = JSON.parse(stored);
+        if (creds.binanceKey && creds.binanceSecret) {
+          setHasKeys(true);
+          setExchangeName(creds.connectedExchange === "binance" ? "BINANCE" : "BYBIT");
+        }
+      } catch (e) {
+        console.error("Failed to load credentials:", e);
+      }
+    }
+  }, []);
+
+  const handleStartBot = () => {
+    if (!hasKeys) {
+      alert("❌ No API keys found!\n\nGo to Settings to connect Binance or Bybit first.");
+      setShowKeysModal(true);
+      return;
+    }
+    
+    setIsBotRunning(true);
+    alert(`🚀 BOT STARTED!\n\nScalping bot is now LIVE on ${exchangeName}.\n\nStarting 1-second market analysis...\n\nWatch the chart and logs for trades!`);
+  };
+
+  const handleStopBot = () => {
+    setIsBotRunning(false);
+    alert("⏹️ BOT STOPPED\n\nNo new trades will be executed.");
+  };
 
   return (
     <DashboardLayout>
@@ -43,23 +75,53 @@ export default function Dashboard() {
                <div className={`w-2 h-2 rounded-full ${isBotRunning ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
              </div>
              
-             <div className="grid grid-cols-2 gap-2">
-                <Button 
-                  size="sm" 
-                  className={`h-8 text-xs font-bold ${isBotRunning ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'}`}
-                  onClick={() => setIsBotRunning(!isBotRunning)}
-                >
-                  {isBotRunning ? <><Pause className="w-3 h-3 mr-1" /> PAUSE</> : <><Play className="w-3 h-3 mr-1" /> START</>}
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="h-8 text-xs border-white/10 hover:bg-white/5"
+             <div className="flex flex-col gap-2">
+                {!isBotRunning ? (
+                  <button 
+                    onClick={handleStartBot}
+                    className={`h-10 text-sm font-bold rounded px-3 transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                      hasKeys 
+                        ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/50' 
+                        : 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/50'
+                    }`}
+                  >
+                    <Play className="w-4 h-4" /> START BOT
+                  </button>
+                ) : (
+                  <button 
+                    onClick={handleStopBot}
+                    className="h-10 text-sm font-bold rounded px-3 bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Pause className="w-4 h-4" /> STOP BOT
+                  </button>
+                )}
+                
+                <button 
                   onClick={() => setShowKeysModal(true)}
+                  className="h-8 text-xs font-bold rounded px-3 border border-white/10 bg-white/5 hover:bg-white/10 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <Settings className="w-3 h-3 mr-1" /> CONFIG
-                </Button>
+                  <Settings className="w-3 h-3" /> CONFIG
+                </button>
              </div>
+
+             {isBotRunning && (
+               <div className="mt-3 p-2 bg-green-500/10 border border-green-500/30 rounded text-[10px] font-mono text-green-400">
+                 ✓ BOT IS LIVE {hasKeys && `on ${exchangeName}`}
+               </div>
+             )}
+
+             {hasKeys && !isBotRunning && (
+               <div className="mt-3 p-2 bg-blue-500/10 border border-blue-500/30 rounded text-[10px] font-mono text-blue-400">
+                 ✓ API Keys Connected ({exchangeName})
+               </div>
+             )}
+
+             {!hasKeys && (
+               <div className="mt-3 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-[10px] font-mono text-yellow-400 flex items-start gap-2">
+                 <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+                 <span>No API keys connected. Click CONFIG to add keys.</span>
+               </div>
+             )}
           </div>
 
           {/* 2. AI Stats / Performance */}
@@ -96,7 +158,7 @@ export default function Dashboard() {
 
           {/* 4. Terminal Logs (Fills remaining space) */}
           <div className="flex-1 min-h-0 bg-black">
-            <TerminalLog />
+            <TerminalLog isBotRunning={isBotRunning} />
           </div>
 
         </div>
