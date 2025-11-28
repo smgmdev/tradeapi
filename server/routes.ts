@@ -1,19 +1,17 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { BinanceManager } from "./binance";
+import { BybitManager } from "./bybit";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   
-  let binanceManager: BinanceManager | null = null;
+  let exchangeManager: BinanceManager | BybitManager | null = null;
   let botRunning = false;
 
-  // Initialize Binance Manager
-  binanceManager = new BinanceManager(httpServer);
-
-  // Try auto-connect with Bybit (since Binance has geo-restrictions)
+  // Determine which exchange to use
   const bybitKey = process.env.BYBIT_API_KEY;
   const bybitSecret = process.env.BYBIT_API_SECRET;
   const binanceKey = process.env.BINANCE_API_KEY;
@@ -25,29 +23,33 @@ export async function registerRoutes(
   
   // Try Bybit first (no geo-restrictions)
   if (bybitKey && bybitSecret) {
+    console.log("[API] INITIALIZING BYBIT MANAGER...");
+    exchangeManager = new BybitManager(httpServer);
     console.log("[API] ATTEMPTING AUTO-CONNECT TO BYBIT...");
     try {
-      const result = await binanceManager.connect(bybitKey, bybitSecret);
+      const result = await exchangeManager.connect(bybitKey, bybitSecret);
       console.log("[API] ✓ Auto-connected to Bybit Futures");
     } catch (error: any) {
       console.error("[API] Warning: Bybit connection failed:", error.message);
-      // Continue anyway - app will still work, user can connect manually
     }
   } else if (binanceKey && binanceSecret) {
     // Fall back to Binance if available
+    console.log("[API] INITIALIZING BINANCE MANAGER...");
+    exchangeManager = new BinanceManager(httpServer);
     console.log("[API] ATTEMPTING AUTO-CONNECT TO BINANCE...");
     try {
-      const result = await binanceManager.connect(binanceKey, binanceSecret);
+      const result = await exchangeManager.connect(binanceKey, binanceSecret);
       console.log("[API] ✓ Auto-connected to Binance Futures");
     } catch (error: any) {
       console.error("[API] Warning: Binance connection failed:", error.message);
-      // Continue anyway - app will still work, user can connect manually
     }
   } else {
-    console.log("[API] No exchange API keys available. User can connect manually in Settings.");
+    console.log("[API] No exchange API keys available. Initializing default Bybit manager.");
+    exchangeManager = new BybitManager(httpServer);
+    console.log("[API] User can connect manually in Settings.");
   }
 
-  // Connect to Binance with API keys
+  // Connect to exchange with API keys
   app.post("/api/exchange/connect", async (req, res) => {
     try {
       const { exchange, apiKey, apiSecret } = req.body;
@@ -56,31 +58,40 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Missing exchange, apiKey, or apiSecret" });
       }
 
-      if (exchange !== "binance") {
-        return res.status(400).json({ error: "Only Binance Futures is supported at this time" });
+      if (exchange === "bybit") {
+        exchangeManager = new BybitManager(httpServer);
+        const result = await exchangeManager.connect(apiKey, apiSecret);
+        res.json({
+          status: "CONNECTED",
+          exchange: "bybit",
+          message: "Successfully connected to Bybit Futures",
+          accountType: result.account,
+          balances: result.balances,
+        });
+      } else if (exchange === "binance") {
+        exchangeManager = new BinanceManager(httpServer);
+        const result = await exchangeManager.connect(apiKey, apiSecret);
+        res.json({
+          status: "CONNECTED",
+          exchange: "binance",
+          message: "Successfully connected to Binance Futures",
+          accountType: result.account,
+          balances: result.balances,
+        });
+      } else {
+        return res.status(400).json({ error: "Exchange must be 'binance' or 'bybit'" });
       }
-
-      // Connect to Binance
-      const result = await binanceManager!.connect(apiKey, apiSecret);
-
-      res.json({
-        status: "CONNECTED",
-        exchange: "binance",
-        message: "Successfully connected to Binance Futures",
-        accountType: result.account,
-        balances: result.balances,
-      });
     } catch (error: any) {
       console.error("[API] Connection error:", error);
-      res.status(500).json({ error: error.message || "Failed to connect to Binance" });
+      res.status(500).json({ error: error.message || "Failed to connect to exchange" });
     }
   });
 
-  // Get current market price (REAL from Binance)
+  // Get current market price (REAL from exchange)
   app.get("/api/market/price/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
-      const priceData = await binanceManager!.getPrice(symbol || "BTCUSDT");
+      const priceData = await exchangeManager!.getPrice(symbol || "BTCUSDT");
       res.json(priceData);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -90,8 +101,8 @@ export async function registerRoutes(
   // Start scalping bot
   app.post("/api/bot/start", async (req, res) => {
     try {
-      if (!binanceManager!.isConnected()) {
-        return res.status(400).json({ error: "Not connected to Binance. Connect API keys first." });
+      if (!exchangeManager!.isConnected()) {
+        return res.status(400).json({ error: "Not connected to exchange. Connect API keys first." });
       }
 
       botRunning = true;
@@ -99,7 +110,7 @@ export async function registerRoutes(
 
       res.json({
         status: "BOT_STARTED",
-        message: "Scalping bot is now running with real Binance price data",
+        message: "Scalping bot is now running with real price data",
         symbol: "BTCUSDT",
         strategy: "momentum_scalper",
         takeProfit: 1.5,
@@ -121,16 +132,16 @@ export async function registerRoutes(
   // Get bot status
   app.get("/api/bot/status", async (req, res) => {
     try {
-      const positions = await binanceManager!.getOpenPositions();
+      const positions = await exchangeManager!.getOpenPositions();
       res.json({
         running: botRunning,
-        connected: binanceManager!.isConnected(),
-        currentPrice: binanceManager!.getCurrentPrice(),
+        connected: exchangeManager!.isConnected(),
+        currentPrice: exchangeManager!.getCurrentPrice(),
         openPositions: positions.length,
         positions: positions.map((p: any) => ({
-          symbol: p.symbol,
-          side: p.positionSide,
-          size: p.positionAmt,
+          symbol: p.symbol || "BTCUSDT",
+          side: p.positionSide || p.side,
+          size: p.positionAmt || p.size,
           entryPrice: p.entryPrice,
           pnl: p.unRealizedProfit,
           pnlPercent: p.percentage,
@@ -139,21 +150,21 @@ export async function registerRoutes(
     } catch (error: any) {
       res.json({
         running: botRunning,
-        connected: binanceManager!.isConnected(),
+        connected: exchangeManager!.isConnected(),
         error: error.message,
       });
     }
   });
 
-  // Get Binance account info - REAL DATA from exchange
+  // Get account info - REAL DATA from exchange
   app.get("/api/account", async (req, res) => {
     try {
-      if (!binanceManager!.isConnected()) {
-        return res.status(400).json({ error: "Not connected to Binance" });
+      if (!exchangeManager!.isConnected()) {
+        return res.status(400).json({ error: "Not connected to exchange" });
       }
 
-      const accountInfo = await binanceManager!.getAccountInfo();
-      const currentPrice = binanceManager!.getCurrentPrice();
+      const accountInfo = await exchangeManager!.getAccountInfo();
+      const currentPrice = exchangeManager!.getCurrentPrice();
       res.json({
         connected: true,
         price: currentPrice,
