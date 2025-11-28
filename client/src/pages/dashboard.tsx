@@ -7,21 +7,22 @@ import { ApiKeysModal } from "@/components/settings/api-keys-modal";
 import { useState, useEffect } from "react";
 import { Settings, Play, Pause, Power, AlertCircle, Zap } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { useBinancePrice } from "@/hooks/useBinancePrice";
 
 export default function Dashboard() {
   const [showKeysModal, setShowKeysModal] = useState(false);
   const [isBotRunning, setIsBotRunning] = useState(false);
   const [hasKeys, setHasKeys] = useState(false);
-  const [exchangeName, setExchangeName] = useState("");
+  const [exchangeName, setExchangeName] = useState("BYBIT");
+  const { price, loading, error } = useBinancePrice();
 
   useEffect(() => {
     const stored = localStorage.getItem("exchange-credentials");
     if (stored) {
       try {
         const creds = JSON.parse(stored);
-        if (creds.binanceKey && creds.binanceSecret) {
+        if (creds.bybitKey && creds.bybitSecret) {
           setHasKeys(true);
-          setExchangeName(creds.connectedExchange === "binance" ? "BINANCE" : "BYBIT");
         }
       } catch (e) {
         console.error("Failed to load credentials:", e);
@@ -31,7 +32,7 @@ export default function Dashboard() {
 
   const handleStartBot = () => {
     if (!hasKeys) {
-      alert("❌ No API keys found!\n\nGo to Settings to connect Binance or Bybit first.");
+      alert("❌ No API keys found!\n\nGo to Settings to connect Bybit first.");
       setShowKeysModal(true);
       return;
     }
@@ -129,30 +130,34 @@ export default function Dashboard() {
              <AIStatusPanel />
           </div>
 
-          {/* 3. Order Book / Market Depth Simulator (Small) */}
+          {/* 3. Current Price Display (Real Data Only) */}
           <div className="shrink-0 h-48 border-b border-white/10 flex flex-col">
              <div className="px-3 py-2 text-[10px] font-mono text-muted-foreground border-b border-white/5 flex justify-between">
-                <span>ORDER_BOOK</span>
+                <span>LIVE_PRICE</span>
                 <span>BTC/USDT</span>
              </div>
-             <div className="flex-1 flex text-[10px] font-mono">
-                <div className="flex-1 border-r border-white/5 p-1 space-y-0.5">
-                   <div className="text-red-500 flex justify-between px-1"><span>34,285.50</span><span>0.52</span></div>
-                   <div className="text-red-500/90 flex justify-between px-1"><span>34,285.00</span><span>1.20</span></div>
-                   <div className="text-red-500/80 flex justify-between px-1"><span>34,284.80</span><span>0.15</span></div>
-                   <div className="text-red-500/70 flex justify-between px-1"><span>34,284.60</span><span>5.40</span></div>
-                   <div className="text-red-500/60 flex justify-between px-1"><span>34,284.50</span><span>2.10</span></div>
-                </div>
-                <div className="flex-1 p-1 space-y-0.5">
-                   <div className="text-green-500 flex justify-between px-1"><span>34,284.20</span><span>0.85</span></div>
-                   <div className="text-green-500/90 flex justify-between px-1"><span>34,284.10</span><span>3.10</span></div>
-                   <div className="text-green-500/80 flex justify-between px-1"><span>34,284.00</span><span>1.50</span></div>
-                   <div className="text-green-500/70 flex justify-between px-1"><span>34,283.50</span><span>0.25</span></div>
-                   <div className="text-green-500/60 flex justify-between px-1"><span>34,283.20</span><span>4.20</span></div>
-                </div>
-             </div>
-             <div className="p-1 text-center text-[11px] font-mono font-bold text-foreground border-t border-white/5">
-                34,284.52 <span className="text-muted-foreground text-[9px]">$34,284.52</span>
+             <div className="flex-1 flex items-center justify-center">
+                {loading ? (
+                   <div className="text-center">
+                      <div className="text-2xl font-mono text-yellow-500 animate-pulse">⏳ LOADING</div>
+                      <div className="text-[10px] text-muted-foreground mt-2">Fetching real market data...</div>
+                   </div>
+                ) : error ? (
+                   <div className="text-center">
+                      <div className="text-red-500 font-mono text-xs">{error}</div>
+                      <div className="text-[10px] text-muted-foreground mt-2">Connect API keys in Settings</div>
+                   </div>
+                ) : price ? (
+                   <div className="text-center">
+                      <div className="text-5xl font-mono font-bold text-green-500">${price.toFixed(2)}</div>
+                      <div className="text-[10px] text-muted-foreground mt-2">BTCUSDT (Real Bybit Price)</div>
+                   </div>
+                ) : (
+                   <div className="text-center">
+                      <div className="text-2xl font-mono text-yellow-500">⏳ WAITING</div>
+                      <div className="text-[10px] text-muted-foreground mt-2">No data received yet</div>
+                   </div>
+                )}
              </div>
           </div>
 
