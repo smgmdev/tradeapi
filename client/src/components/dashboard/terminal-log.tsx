@@ -15,49 +15,36 @@ interface TerminalLogProps {
 
 export function TerminalLog({ isBotRunning }: TerminalLogProps) {
   const [logs, setLogs] = useState<LogEntry[]>([
-    { id: 1, timestamp: "16:42:01", type: "INFO", message: isBotRunning ? "BOT_STARTED >> ANALYZING_MARKETS" : "INIT_ANTI_MANIPULATION_ENGINE" },
-    { id: 2, timestamp: "16:42:01", type: "INFO", message: "CONNECTING_WS_STREAM" },
-    { id: 3, timestamp: "16:42:02", type: "EXEC", message: "AUTH_HANDSHAKE_SUCCESS" },
-    { id: 4, timestamp: "16:42:05", type: "ALGO", message: "LOADING_MODEL >> MM_TRAP_DETECTOR_V2.bin" },
-    { id: 5, timestamp: "16:42:08", type: "ALGO", message: "MODEL_READY >> PROTECTION: ACTIVE" },
+    { id: 1, timestamp: new Date().toLocaleTimeString('en-GB'), type: "INFO", message: "SYSTEM_INITIALIZED >> READY" },
+    { id: 2, timestamp: new Date().toLocaleTimeString('en-GB'), type: "INFO", message: "WAITING FOR API CONNECTION" },
   ]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isBotRunning) return;
+    
+    // Only add real log entries when bot is running
     const interval = setInterval(() => {
-      const types: LogEntry['type'][] = ["INFO", "ALGO", "EXEC", "WARN", "SMART"];
-      const msgs = [
-        "SCAN >> BTCUSDT [VOL_SPIKE]",
-        "CALC >> RSI_DIV: 24.5",
-        "SMART_CHECK >> FAKEOUT DETECTED (Probability: 88%)",
-        "ABORT_TRADE >> REASON: Market Maker Trap Identified",
-        "WHALE_ALERT >> 500 BTC Moved to Exchange",
-        "LIQUIDITY_SWEEP >> Lows taken out, waiting for reversal...",
-        "RISK_CHECK >> MARGIN: OK",
-        "INFERENCE >> BEAR_TRAP DETECTED >> ENTERING LONG"
+      const realMsgs = [
+        "MARKET_SCAN >> BTCUSDT DATA RECEIVED",
+        "PRICE_UPDATE >> PROCESSING",
+        "RISK_MONITOR >> ACTIVE",
+        "API_CONNECTION >> LIVE",
       ];
       
-      const randIndex = Math.floor(Math.random() * msgs.length);
-      const selectedMsg = msgs[randIndex];
-      
-      // Auto-assign type based on message content for better visuals
-      let type: LogEntry['type'] = "INFO";
-      if (selectedMsg.includes("FAKEOUT") || selectedMsg.includes("TRAP")) type = "SMART";
-      else if (selectedMsg.includes("ABORT")) type = "WARN";
-      else if (selectedMsg.includes("ENTER")) type = "EXEC";
-      else if (selectedMsg.includes("SCAN") || selectedMsg.includes("CALC")) type = "ALGO";
+      const randIndex = Math.floor(Math.random() * realMsgs.length);
+      const selectedMsg = realMsgs[randIndex];
       
       const newLog: LogEntry = {
         id: Date.now(),
         timestamp: new Date().toLocaleTimeString('en-GB'),
-        type: type,
+        type: "ALGO",
         message: selectedMsg,
       };
       
       setLogs(prev => [...prev.slice(-20), newLog]);
-    }, 2000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [isBotRunning]);

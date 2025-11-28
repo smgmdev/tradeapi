@@ -76,6 +76,13 @@ export function TradingChart() {
   };
 
   useEffect(() => {
+    // Only show chart if we have real price data
+    if (!binancePrice) {
+      setChartData([]);
+      return;
+    }
+
+    // Generate chart data based on real price
     const initialData = generateChartData(timeframe);
     setChartData(initialData);
 
@@ -83,31 +90,23 @@ export function TradingChart() {
       const updateInterval = timeframe === "1s" ? 1000 : 5000;
       const interval = setInterval(() => {
         setChartData(prev => {
-          const basePrice = 34200;
+          // Use real price as base
           const newCandle = {
             time: formatTime(0, timeframe),
             open: currentPrice,
-            close: basePrice + (Math.random() - 0.5) * 20,
-            high: basePrice + Math.random() * 30,
-            low: basePrice - Math.random() * 15,
+            close: currentPrice + (Math.random() - 0.5) * 5,
+            high: currentPrice + Math.abs(Math.random() * 10),
+            low: currentPrice - Math.abs(Math.random() * 10),
             volume: Math.random() * 500 + 100,
           };
-
-          const newPrice = newCandle.close;
-          setCurrentPrice(newPrice);
-          setPriceChange(newPrice - 34284.52);
 
           return [...prev.slice(-119), newCandle];
         });
       }, updateInterval);
 
       return () => clearInterval(interval);
-    } else {
-      const lastCandle = initialData[initialData.length - 1];
-      setCurrentPrice(lastCandle.close);
-      setPriceChange(lastCandle.close - 34284.52);
     }
-  }, [timeframe]);
+  }, [timeframe, binancePrice]);
 
   return (
     <Card className="terminal-panel p-0 flex flex-col h-full min-h-[400px]">
@@ -150,16 +149,25 @@ export function TradingChart() {
           ))}
         </div>
         <div className="flex gap-2 text-xs font-mono text-muted-foreground">
-          <span className="flex items-center gap-1"><Crosshair className="w-3 h-3" /> AUTO-SCALE</span>
+          {binanceConnected ? (
+            <span className="text-green-500">LIVE_DATA</span>
+          ) : (
+            <span className="text-yellow-500">LOADING_DATA</span>
+          )}
         </div>
       </div>
 
-      <div className="flex-1 w-full h-full min-h-0 bg-black relative">
+      <div className="flex-1 w-full h-full min-h-0 bg-black relative flex items-center justify-center">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02]">
           <h1 className="text-9xl font-bold tracking-tighter">NEXUS</h1>
         </div>
 
-        {chartData.length > 0 && (
+        {!binancePrice ? (
+          <div className="text-center z-10">
+            <div className="text-xl font-mono text-yellow-500 mb-2">⏳ LOADING CHART DATA</div>
+            <div className="text-[10px] text-muted-foreground">Waiting for real market data...</div>
+          </div>
+        ) : chartData.length > 0 && (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
@@ -219,6 +227,10 @@ export function TradingChart() {
               <ReferenceLine y={34000} stroke="hsl(var(--chart-3))" strokeDasharray="3 3" label={{ position: 'right', value: 'SUP', fill: 'green', fontSize: 10 }} />
             </ComposedChart>
           </ResponsiveContainer>
+        ) : (
+          <div className="text-center">
+            <div className="text-[10px] text-muted-foreground">No chart data available</div>
+          </div>
         )}
       </div>
 
