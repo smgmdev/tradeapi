@@ -1,9 +1,11 @@
-import type BinanceApiType from "binance-api-node";
+import { createRequire } from "module";
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server as HTTPServer } from "http";
+import { fileURLToPath } from "url";
+import path from "path";
 
-// Dynamic import to handle CommonJS
-const BinanceApi = (global as any).BinanceApi || require("binance-api-node").default;
+const require = createRequire(import.meta.url);
+const BinanceApi = require("binance-api-node").default;
 
 export class BinanceManager {
   private client: any = null;
