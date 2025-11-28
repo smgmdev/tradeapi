@@ -1,9 +1,12 @@
-import BinanceApi from "binance-api-node";
+import type BinanceApiType from "binance-api-node";
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server as HTTPServer } from "http";
 
+// Dynamic import to handle CommonJS
+const BinanceApi = (global as any).BinanceApi || require("binance-api-node").default;
+
 export class BinanceManager {
-  private client: ReturnType<typeof BinanceApi> | null = null;
+  private client: any = null;
   private wss: WebSocketServer | null = null;
   private priceSubscribers: Set<WebSocket> = new Set();
   private apiKey: string = "";
@@ -30,6 +33,10 @@ export class BinanceManager {
     this.apiSecret = apiSecret;
 
     try {
+      if (typeof BinanceApi !== "function") {
+        throw new Error("BinanceApi module not properly loaded");
+      }
+      
       this.client = BinanceApi({
         apiKey: apiKey,
         apiSecret: apiSecret,
