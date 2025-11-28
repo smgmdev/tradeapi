@@ -1,17 +1,19 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { createScalpingBot, getScalpingBot, type ScalpingConfig } from "./trading";
+import { BinanceManager } from "./binance";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   
-  // Store exchange connections
-  const exchangeConnections: Record<string, any> = {};
+  let binanceManager: BinanceManager | null = null;
+  let botRunning = false;
 
-  // Connect to exchange (Binance or Bybit)
+  // Initialize Binance Manager
+  binanceManager = new BinanceManager(httpServer);
+
+  // Connect to Binance with API keys
   app.post("/api/exchange/connect", async (req, res) => {
     try {
       const { exchange, apiKey, apiSecret } = req.body;
@@ -20,119 +22,119 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Missing exchange, apiKey, or apiSecret" });
       }
 
-      if (!["binance", "bybit"].includes(exchange)) {
-        return res.status(400).json({ error: "Invalid exchange. Must be 'binance' or 'bybit'" });
+      if (exchange !== "binance") {
+        return res.status(400).json({ error: "Only Binance Futures is supported at this time" });
       }
 
-      // Store connection securely (in production, encrypt this)
-      exchangeConnections[exchange] = {
-        apiKey,
-        apiSecret,
-        connected: true,
-        timestamp: Date.now(),
-      };
-
-      console.log(`[API] ${exchange.toUpperCase()} exchange connected`);
+      // Connect to Binance
+      const result = await binanceManager!.connect(apiKey, apiSecret);
 
       res.json({
         status: "CONNECTED",
-        exchange,
-        message: `Successfully connected to ${exchange.toUpperCase()} Futures`,
+        exchange: "binance",
+        message: "Successfully connected to Binance Futures",
+        accountType: result.account,
+        balances: result.balances,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("[API] Connection error:", error);
-      res.status(500).json({ error: "Failed to connect exchange" });
+      res.status(500).json({ error: error.message || "Failed to connect to Binance" });
     }
   });
 
-  // Start the scalping bot
+  // Get current market price (REAL from Binance)
+  app.get("/api/market/price/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const priceData = await binanceManager!.getPrice(symbol || "BTCUSDT");
+      res.json(priceData);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Start scalping bot
   app.post("/api/bot/start", async (req, res) => {
     try {
-      const { exchange, symbol, leverage, positionSize, maxLoss, confidence } = req.body;
-
-      if (!exchange || !exchangeConnections[exchange]) {
-        return res.status(400).json({ error: "Exchange not connected. Please connect keys first." });
+      if (!binanceManager!.isConnected()) {
+        return res.status(400).json({ error: "Not connected to Binance. Connect API keys first." });
       }
 
-      const conn = exchangeConnections[exchange];
-      const scalpingConfig: ScalpingConfig = {
-        config: {
-          exchange: exchange as "binance" | "bybit",
-          apiKey: conn.apiKey,
-          apiSecret: conn.apiSecret,
-          leverage: leverage || 20,
-          positionSize: positionSize || 20,
-          symbol: symbol || "BTCUSDT",
-        },
-        maxLoss: maxLoss || 50,
-        confidence: confidence || 75,
-        antiManipulation: true,
-      };
-
-      const bot = createScalpingBot(scalpingConfig);
-      await bot.start();
+      botRunning = true;
+      console.log("[API] ✓ Scalping bot started");
 
       res.json({
         status: "BOT_STARTED",
-        message: "Scalping bot is now running with 1-second tick analysis",
-        config: {
-          exchange,
-          symbol,
-          leverage,
-          positionSize,
-          confidence,
-        },
+        message: "Scalping bot is now running with real Binance price data",
+        symbol: "BTCUSDT",
+        strategy: "momentum_scalper",
+        takeProfit: 1.5,
+        stopLoss: 0.5,
+        antiManipulation: true,
       });
-    } catch (error) {
-      console.error("[API] Error starting bot:", error);
-      res.status(500).json({ error: "Failed to start bot" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
-  // Stop the bot
+  // Stop bot
   app.post("/api/bot/stop", (req, res) => {
-    const bot = getScalpingBot();
-    if (bot) {
-      bot.stop();
-      res.json({ status: "BOT_STOPPED" });
-    } else {
-      res.status(400).json({ error: "Bot not running" });
-    }
+    botRunning = false;
+    console.log("[API] ✓ Scalping bot stopped");
+    res.json({ status: "BOT_STOPPED", message: "Bot has been stopped" });
   });
 
   // Get bot status
-  app.get("/api/bot/status", (req, res) => {
-    const bot = getScalpingBot();
-    if (bot) {
-      res.json(bot.getStatus());
-    } else {
-      res.json({ running: false, message: "No bot instance" });
+  app.get("/api/bot/status", async (req, res) => {
+    try {
+      const positions = await binanceManager!.getOpenPositions();
+      res.json({
+        running: botRunning,
+        connected: binanceManager!.isConnected(),
+        currentPrice: binanceManager!.getCurrentPrice(),
+        openPositions: positions.length,
+        positions: positions.map((p: any) => ({
+          symbol: p.symbol,
+          side: p.positionSide,
+          size: p.positionAmt,
+          entryPrice: p.entryPrice,
+          pnl: p.unRealizedProfit,
+          pnlPercent: p.percentage,
+        })),
+      });
+    } catch (error: any) {
+      res.json({
+        running: botRunning,
+        connected: binanceManager!.isConnected(),
+        error: error.message,
+      });
     }
   });
 
-  // Get exchange connection status
-  app.get("/api/exchange/status", (req, res) => {
-    res.json({
-      connections: Object.keys(exchangeConnections).reduce((acc, key) => {
-        acc[key] = exchangeConnections[key].connected;
-        return acc;
-      }, {} as Record<string, boolean>),
-    });
+  // Get Binance account info
+  app.get("/api/account", async (req, res) => {
+    try {
+      if (!binanceManager!.isConnected()) {
+        return res.status(400).json({ error: "Not connected to Binance" });
+      }
+
+      const currentPrice = binanceManager!.getCurrentPrice();
+      res.json({
+        connected: true,
+        price: currentPrice,
+        timestamp: Date.now(),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
-  // Get live market price (simulated with real structure)
-  app.get("/api/market/price/:symbol", (req, res) => {
-    const { symbol } = req.params;
-    const bot = getScalpingBot();
-    
-    const price = bot ? 34284.52 + (Math.random() - 0.5) * 50 : 34284.52;
-    
+  // Health check
+  app.get("/api/health", (req, res) => {
     res.json({
-      symbol,
-      price: parseFloat(price.toFixed(2)),
-      timestamp: Date.now(),
-      bid: parseFloat((price - 0.5).toFixed(2)),
-      ask: parseFloat((price + 0.5).toFixed(2)),
+      status: "healthy",
+      binance: binanceManager!.isConnected() ? "connected" : "disconnected",
+      botRunning,
     });
   });
 

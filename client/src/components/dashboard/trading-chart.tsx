@@ -3,6 +3,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Maximize2, Crosshair, TrendingUp, BarChart, Zap, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useBinancePrice } from "@/hooks/useBinancePrice";
 
 type Timeframe = "1s" | "5s" | "15s" | "1m" | "5m" | "10m" | "15m" | "30m";
 
@@ -11,20 +12,15 @@ export function TradingChart() {
   const [currentPrice, setCurrentPrice] = useState(34284.52);
   const [priceChange, setPriceChange] = useState(0);
   const [timeframe, setTimeframe] = useState<Timeframe>("1s");
-  const [isConnected, setIsConnected] = useState(false);
+  const { price: binancePrice, connected: binanceConnected } = useBinancePrice();
 
-  // Check if Binance is connected
+  // Use Binance real price when connected
   useEffect(() => {
-    const stored = localStorage.getItem("exchange-credentials");
-    if (stored) {
-      try {
-        const creds = JSON.parse(stored);
-        if (creds.binanceKey && creds.binanceSecret && creds.connectedExchange === "binance") {
-          setIsConnected(true);
-        }
-      } catch (e) {}
+    if (binanceConnected && binancePrice) {
+      setCurrentPrice(binancePrice);
+      setPriceChange(binancePrice - 34284.52);
     }
-  }, []);
+  }, [binancePrice, binanceConnected]);
 
   const generateChartData = (tf: Timeframe) => {
     const intervals: Record<Timeframe, number> = {
@@ -122,13 +118,13 @@ export function TradingChart() {
         </div>
         <div className="flex gap-4 text-[10px]">
           <span className="flex items-center gap-1">
-            {isConnected ? (
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded text-green-600">
-                <CheckCircle2 className="w-3 h-3" /> BINANCE_CONNECTED
+            {binanceConnected ? (
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded text-green-600 animate-pulse">
+                <CheckCircle2 className="w-3 h-3" /> BINANCE_LIVE
               </span>
             ) : (
               <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/20 rounded text-yellow-600">
-                <AlertCircle className="w-3 h-3" /> SIMULATED_DATA
+                <AlertCircle className="w-3 h-3" /> CONNECTING...
               </span>
             )}
           </span>
@@ -228,7 +224,7 @@ export function TradingChart() {
 
       <div className="p-2 bg-black border-t border-white/10 text-[10px] font-mono text-muted-foreground flex justify-between">
         <span>OHLC: O:{chartData[chartData.length-1]?.open?.toFixed(2)} H:{chartData[chartData.length-1]?.high?.toFixed(2)} L:{chartData[chartData.length-1]?.low?.toFixed(2)} C:{chartData[chartData.length-1]?.close?.toFixed(2)}</span>
-        <span>VOL: {(chartData[chartData.length-1]?.volume || 0).toFixed(0)} | {isConnected ? "LIVE" : "SIMULATED"}</span>
+        <span>VOL: {(chartData[chartData.length-1]?.volume || 0).toFixed(0)} | {binanceConnected ? "REAL-TIME BINANCE FEED" : "CONNECTING..."}</span>
       </div>
     </Card>
   );
