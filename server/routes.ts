@@ -13,31 +13,38 @@ export async function registerRoutes(
   // Initialize Binance Manager
   binanceManager = new BinanceManager(httpServer);
 
-  // Auto-connect to Binance with environment variables
-  console.log("[API] DEBUG: Checking for BINANCE_API_KEY:", !!process.env.BINANCE_API_KEY);
-  console.log("[API] DEBUG: Checking for BINANCE_API_SECRET:", !!process.env.BINANCE_API_SECRET);
+  // Try auto-connect with Bybit (since Binance has geo-restrictions)
+  const bybitKey = process.env.BYBIT_API_KEY;
+  const bybitSecret = process.env.BYBIT_API_SECRET;
+  const binanceKey = process.env.BINANCE_API_KEY;
+  const binanceSecret = process.env.BINANCE_API_SECRET;
   
-  const apiKey = process.env.BINANCE_API_KEY;
-  const apiSecret = process.env.BINANCE_API_SECRET;
+  console.log("[API] Checking for exchange API keys...");
+  console.log("[API] Bybit available:", !!bybitKey && !!bybitSecret);
+  console.log("[API] Binance available:", !!binanceKey && !!binanceSecret);
   
-  console.log("[API] DEBUG: apiKey value length:", apiKey ? apiKey.length : 0);
-  console.log("[API] DEBUG: apiSecret value length:", apiSecret ? apiSecret.length : 0);
-  
-  if (apiKey && apiSecret) {
+  // Try Bybit first (no geo-restrictions)
+  if (bybitKey && bybitSecret) {
+    console.log("[API] ATTEMPTING AUTO-CONNECT TO BYBIT...");
+    try {
+      const result = await binanceManager.connect(bybitKey, bybitSecret);
+      console.log("[API] ✓ Auto-connected to Bybit Futures");
+    } catch (error: any) {
+      console.error("[API] Warning: Bybit connection failed:", error.message);
+      // Continue anyway - app will still work, user can connect manually
+    }
+  } else if (binanceKey && binanceSecret) {
+    // Fall back to Binance if available
     console.log("[API] ATTEMPTING AUTO-CONNECT TO BINANCE...");
     try {
-      console.log("[API] Calling binanceManager.connect()...");
-      const result = await binanceManager.connect(apiKey, apiSecret);
-      console.log("[API] ✓ Auto-connected to Binance with API credentials");
-      console.log("[API] Connection result:", result);
+      const result = await binanceManager.connect(binanceKey, binanceSecret);
+      console.log("[API] ✓ Auto-connected to Binance Futures");
     } catch (error: any) {
-      console.error("[API] ❌ FAILED TO AUTO-CONNECT");
-      console.error("[API] Error message:", error.message);
-      console.error("[API] Error stack:", error.stack);
-      console.error("[API] Full error:", error);
+      console.error("[API] Warning: Binance connection failed:", error.message);
+      // Continue anyway - app will still work, user can connect manually
     }
   } else {
-    console.error("[API] ❌ MISSING ENV VARS - apiKey:", !!apiKey, "apiSecret:", !!apiSecret);
+    console.log("[API] No exchange API keys available. User can connect manually in Settings.");
   }
 
   // Connect to Binance with API keys
