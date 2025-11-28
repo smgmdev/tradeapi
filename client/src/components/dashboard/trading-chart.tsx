@@ -3,7 +3,6 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Maximize2, Crosshair, TrendingUp, BarChart, Zap, AlertCircle, CheckCircle2 } from "lucide-react";
-import { useBinancePrice } from "@/hooks/useBinancePrice";
 
 type Timeframe = "1s" | "5s" | "15s" | "1m" | "5m" | "10m" | "15m" | "30m";
 
@@ -12,15 +11,59 @@ export function TradingChart() {
   const [currentPrice, setCurrentPrice] = useState(34284.52);
   const [priceChange, setPriceChange] = useState(0);
   const [timeframe, setTimeframe] = useState<Timeframe>("1s");
-  const { price: binancePrice, connected: binanceConnected, loading, error } = useBinancePrice();
+  const [bybitPrice, setBybitPrice] = useState<number | null>(null);
+  const [bybitConnected, setBybitConnected] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Connect to Bybit WebSocket
+  useEffect(() => {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/prices`);
+
+    ws.onopen = () => {
+      setBybitConnected(true);
+      setLoading(false);
+      setError(null);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.price) {
+          setBybitPrice(data.price);
+          setError(null);
+        } else if (data.error) {
+          setError(data.message || "Unable to fetch price data");
+          setBybitPrice(null);
+        }
+      } catch (e) {
+        console.error("[WebSocket] Parse error:", e);
+      }
+    };
+
+    ws.onerror = () => {
+      setBybitConnected(false);
+      setError("Connection failed");
+    };
+
+    ws.onclose = () => {
+      setBybitConnected(false);
+      setTimeout(() => {
+        window.location.reload();
+      }, 3000);
+    };
+
+    return () => ws.close();
+  }, []);
 
   // Use real price when connected
   useEffect(() => {
-    if (binancePrice) {
-      setCurrentPrice(binancePrice);
+    if (bybitPrice) {
+      setCurrentPrice(bybitPrice);
       setPriceChange(0);
     }
-  }, [binancePrice]);
+  }, [bybitPrice]);
 
   const generateChartData = (tf: Timeframe) => {
     const intervals: Record<Timeframe, number> = {
@@ -77,7 +120,7 @@ export function TradingChart() {
 
   useEffect(() => {
     // Only show chart if we have real price data
-    if (!binancePrice) {
+    if (!bybitPrice) {
       setChartData([]);
       return;
     }
@@ -106,7 +149,7 @@ export function TradingChart() {
 
       return () => clearInterval(interval);
     }
-  }, [timeframe, binancePrice]);
+  }, [timeframe, bybitPrice]);
 
   return (
     <Card className="terminal-panel p-0 flex flex-col h-full min-h-[400px]">
@@ -117,9 +160,9 @@ export function TradingChart() {
         </div>
         <div className="flex gap-4 text-[10px]">
           <span className="flex items-center gap-1">
-            {binanceConnected ? (
+            {bybitConnected ? (
               <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded text-green-600 animate-pulse">
-                <CheckCircle2 className="w-3 h-3" /> BINANCE_LIVE
+                <CheckCircle2 className="w-3 h-3" /> BYBIT_LIVE
               </span>
             ) : (
               <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/20 rounded text-yellow-600">
