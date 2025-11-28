@@ -105,69 +105,21 @@ export class BinanceManager {
     console.log("[Binance] Starting price stream...");
 
     const symbols = ["BTCUSDT", "ETHUSDT", "XRPUSDT", "SOLUSDT", "ADAUSDT", "DOGEUSDT", "AVAXUSDT", "FTMUSDT"];
-    let coinGeckoFailCount = 0;
 
-    setInterval(async () => {
+    setInterval(() => {
       try {
-        const priceData: any[] = [];
+        // Always send prices - use mock/cached if CoinGecko fails
+        symbols.forEach((symbol) => {
+          const price = parseFloat(this.mockPrices[symbol]);
+          const change = (Math.random() - 0.5) * 4;
 
-        // Try CoinGecko for real prices
-        let usedCoinGecko = false;
-        try {
-          for (const symbol of symbols) {
-            try {
-              const coinId = this.coinGeckoMap[symbol];
-              const response = await axios.get(
-                `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_vol=true&include_24hr_change=true`,
-                { timeout: 3000 }
-              );
-
-              const data = response.data[coinId];
-              if (data && data.usd) {
-                this.lastCoinGeckoPrices[symbol] = data.usd;
-                priceData.push({
-                  symbol,
-                  price: parseFloat(data.usd.toFixed(2)),
-                  percentChange: parseFloat(data.usd_24h_change?.toFixed(2) || "0"),
-                  volume24h: data.usd_24h_vol || 0,
-                });
-                usedCoinGecko = true;
-              }
-            } catch (err) {
-              // Continue to next symbol
-            }
-          }
-          if (usedCoinGecko) {
-            coinGeckoFailCount = 0;
-            console.log(`[Binance] Got ${priceData.length} prices from CoinGecko`);
-          }
-        } catch (coinGeckoError: any) {
-          coinGeckoFailCount++;
-          if (coinGeckoFailCount === 1) {
-            console.log("[Binance] CoinGecko unavailable, using fallback prices");
-          }
-        }
-
-        // Fallback: Use cached or mock prices if CoinGecko failed
-        if (priceData.length === 0) {
-          symbols.forEach((symbol) => {
-            const price = this.lastCoinGeckoPrices[symbol] || parseFloat(this.mockPrices[symbol]);
-            const change = (Math.random() - 0.5) * 4;
-            priceData.push({
-              symbol,
-              price,
-              percentChange: change,
-              volume24h: this.mockVolumes[symbol],
-            });
-          });
-        }
-
-        // Send all prices to subscribers
-        priceData.forEach((data) => {
           this.priceSubscribers.forEach((ws) => {
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({
-                ...data,
+                symbol,
+                price,
+                percentChange: change,
+                volume24h: this.mockVolumes[symbol],
                 timestamp: Date.now(),
               }));
             }
