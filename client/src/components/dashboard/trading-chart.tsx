@@ -2,88 +2,169 @@ import { useState, useEffect } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine, ComposedChart, Bar } from "recharts";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Maximize2, Crosshair, TrendingUp, BarChart, Zap } from "lucide-react";
+import { Maximize2, Crosshair, TrendingUp, BarChart, Zap, AlertCircle } from "lucide-react";
+
+type Timeframe = "1s" | "5s" | "15s" | "1m" | "5m" | "10m" | "15m" | "30m";
 
 export function TradingChart() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [currentPrice, setCurrentPrice] = useState(34284.52);
   const [priceChange, setPriceChange] = useState(0);
+  const [timeframe, setTimeframe] = useState<Timeframe>("1s");
 
-  // Generate live real-time candles every second
-  useEffect(() => {
-    // Initialize with base data
-    const initialData = Array.from({ length: 60 }, (_, i) => {
-      const basePrice = 34200;
+  // Generate data based on selected timeframe
+  const generateChartData = (tf: Timeframe) => {
+    const intervals: Record<Timeframe, number> = {
+      "1s": 1000,
+      "5s": 5000,
+      "15s": 15000,
+      "1m": 60000,
+      "5m": 300000,
+      "10m": 600000,
+      "15m": 900000,
+      "30m": 1800000,
+    };
+
+    const candleCount: Record<Timeframe, number> = {
+      "1s": 60,    // 60 seconds
+      "5s": 60,    // 5 minutes
+      "15s": 60,   // 15 minutes
+      "1m": 60,    // 1 hour
+      "5m": 60,    // 5 hours
+      "10m": 48,   // 8 hours
+      "15m": 96,   // 24 hours
+      "30m": 96,   // 48 hours
+    };
+
+    const count = candleCount[tf];
+    const volatility: Record<Timeframe, number> = {
+      "1s": 10,
+      "5s": 20,
+      "15s": 30,
+      "1m": 50,
+      "5m": 100,
+      "10m": 150,
+      "15m": 200,
+      "30m": 300,
+    };
+
+    return Array.from({ length: count }, (_, i) => {
+      const basePrice = 34200 + i * 5;
+      const volatilityRange = volatility[tf];
       return {
-        time: `${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}`,
-        open: basePrice + Math.random() * 200,
-        close: basePrice + Math.random() * 200,
-        high: basePrice + Math.random() * 300,
-        low: basePrice + Math.random() * 100,
+        time: formatTime(i, tf),
+        open: basePrice + (Math.random() - 0.5) * volatilityRange,
+        close: basePrice + (Math.random() - 0.5) * volatilityRange,
+        high: basePrice + Math.random() * volatilityRange,
+        low: basePrice - Math.random() * volatilityRange,
         volume: Math.random() * 1000,
       };
     });
+  };
+
+  const formatTime = (index: number, tf: Timeframe) => {
+    const now = new Date();
+    const intervals: Record<Timeframe, number> = {
+      "1s": 1,
+      "5s": 5,
+      "15s": 15,
+      "1m": 60,
+      "5m": 300,
+      "10m": 600,
+      "15m": 900,
+      "30m": 1800,
+    };
+
+    const offsetMs = index * intervals[tf] * 1000;
+    const date = new Date(now.getTime() - offsetMs);
+
+    if (["1s", "5s", "15s"].includes(tf)) {
+      return date.toLocaleTimeString();
+    } else if (tf === "1m") {
+      return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+    } else {
+      return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+    }
+  };
+
+  // Initialize and update chart based on timeframe
+  useEffect(() => {
+    const initialData = generateChartData(timeframe);
     setChartData(initialData);
 
-    // Real-time update every 1 second (scalping timeframe)
-    const interval = setInterval(() => {
-      setChartData(prev => {
-        const now = new Date();
-        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-        
-        const basePrice = 34200;
-        const newCandle = {
-          time: timeStr,
-          open: currentPrice,
-          close: basePrice + Math.random() * 200,
-          high: basePrice + 200 + Math.random() * 100,
-          low: basePrice + Math.random() * 50,
-          volume: Math.random() * 500 + 100,
-        };
-        
-        // Update real-time price
-        const newPrice = newCandle.close;
-        setCurrentPrice(newPrice);
-        setPriceChange(newPrice - 34284.52);
+    // For 1s and 5s, update in real-time
+    if (["1s", "5s"].includes(timeframe)) {
+      const updateInterval = timeframe === "1s" ? 1000 : 5000;
+      const interval = setInterval(() => {
+        setChartData(prev => {
+          const now = new Date();
+          const basePrice = 34200;
+          const newCandle = {
+            time: formatTime(0, timeframe),
+            open: currentPrice,
+            close: basePrice + (Math.random() - 0.5) * 20,
+            high: basePrice + Math.random() * 30,
+            low: basePrice - Math.random() * 15,
+            volume: Math.random() * 500 + 100,
+          };
 
-        // Keep last 120 seconds of data
-        return [...prev.slice(-119), newCandle];
-      });
-    }, 1000);
+          const newPrice = newCandle.close;
+          setCurrentPrice(newPrice);
+          setPriceChange(newPrice - 34284.52);
 
-    return () => clearInterval(interval);
-  }, []);
+          return [...prev.slice(-119), newCandle];
+        });
+      }, updateInterval);
+
+      return () => clearInterval(interval);
+    } else {
+      // For other timeframes, just update the price display
+      const lastCandle = initialData[initialData.length - 1];
+      setCurrentPrice(lastCandle.close);
+      setPriceChange(lastCandle.close - 34284.52);
+    }
+  }, [timeframe]);
 
   return (
     <Card className="terminal-panel p-0 flex flex-col h-full min-h-[400px]">
       <div className="terminal-header">
         <div className="flex items-center gap-2">
           <BarChart className="w-3 h-3" />
-          <span>SCALP_TERMINAL: BTCUSDT.P | TIMEFRAME: 1SEC</span>
+          <span>SCALP_TERMINAL: BTCUSDT.P | TIMEFRAME: {timeframe.toUpperCase()}</span>
         </div>
         <div className="flex gap-4 text-[10px]">
-           <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> LIVE_TICK: <span className="text-green-500 font-bold animate-pulse">STREAMING</span></span>
-           <span>PRICE: <span className="text-primary font-bold">${currentPrice.toFixed(2)}</span></span>
-           <span className={priceChange >= 0 ? 'text-green-500' : 'text-red-500'}>{priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}</span>
+          <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/10 border border-yellow-500/20 rounded text-yellow-600">
+            <AlertCircle className="w-3 h-3" /> SIMULATED_DATA (Connect keys for real prices)
+          </span>
+          <span>PRICE: <span className="text-primary font-bold">${currentPrice.toFixed(2)}</span></span>
+          <span className={priceChange >= 0 ? 'text-green-500' : 'text-red-500'}>{priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}</span>
         </div>
       </div>
 
       <div className="p-2 border-b border-white/10 bg-black flex justify-between items-center">
-         <div className="flex gap-1">
-            {["1s", "5s", "15s", "1m", "5m"].map(tf => (
-              <button key={tf} className={`px-2 py-0.5 text-[10px] font-mono uppercase hover:bg-white/10 ${tf === '1s' ? 'bg-primary text-black font-bold' : 'text-muted-foreground'}`}>
-                {tf}
-              </button>
-            ))}
-         </div>
-         <div className="flex gap-2 text-xs font-mono text-muted-foreground">
-            <span className="flex items-center gap-1"><Crosshair className="w-3 h-3" /> AUTO-SCALE</span>
-         </div>
+        <div className="flex gap-1">
+          {["1s", "5s", "15s", "1m", "5m", "10m", "15m", "30m"].map(tf => (
+            <button 
+              key={tf} 
+              onClick={() => setTimeframe(tf as Timeframe)}
+              className={`px-2 py-0.5 text-[10px] font-mono uppercase hover:bg-white/10 transition-colors ${
+                timeframe === tf 
+                  ? 'bg-primary text-black font-bold' 
+                  : 'text-muted-foreground'
+              }`}
+            >
+              {tf}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2 text-xs font-mono text-muted-foreground">
+          <span className="flex items-center gap-1"><Crosshair className="w-3 h-3" /> AUTO-SCALE</span>
+        </div>
       </div>
 
       <div className="flex-1 w-full h-full min-h-0 bg-black relative">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02]">
-           <h1 className="text-9xl font-bold tracking-tighter">NEXUS</h1>
+          <h1 className="text-9xl font-bold tracking-tighter">NEXUS</h1>
         </div>
 
         {chartData.length > 0 && (
