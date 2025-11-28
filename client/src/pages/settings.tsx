@@ -2,7 +2,6 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
@@ -35,21 +34,22 @@ export default function SettingsPage() {
   }, []);
 
   const handleConnectBinance = () => {
-    alert("BUTTON CLICKED - Testing if clicks work");
+    console.log("🟢 BINANCE CONNECT CLICKED");
+    alert("BINANCE BUTTON CLICKED!");
     
     if (!binanceKey.trim()) {
-      alert("ERROR: API Key field is EMPTY\n\nPlease paste your Binance API Key");
+      alert("❌ ERROR: API Key is empty");
       setConnectionMessage("❌ ERROR: API Key is empty");
       return;
     }
     
     if (!binanceSecret.trim()) {
-      alert("ERROR: Secret Key field is EMPTY\n\nPlease paste your Binance Secret Key");
+      alert("❌ ERROR: Secret Key is empty");
       setConnectionMessage("❌ ERROR: Secret Key is empty");
       return;
     }
 
-    alert("BOTH KEYS FOUND!\n\nConnecting now...");
+    alert("✅ BOTH KEYS PROVIDED - Connecting...");
     setIsConnecting(true);
     setConnectionMessage("🔄 CONNECTING TO BINANCE...");
 
@@ -64,26 +64,27 @@ export default function SettingsPage() {
       }));
       setConnectionMessage("✅ BINANCE CONNECTED!");
       setIsConnecting(false);
-      alert("✅ SUCCESS: Connected to Binance Futures!\n\nAPI keys stored in your browser.");
+      alert("✅ SUCCESS: Connected to Binance Futures!");
     }, 1000);
   };
 
   const handleConnectBybit = () => {
-    alert("BUTTON CLICKED - Testing if clicks work");
+    console.log("🔵 BYBIT CONNECT CLICKED");
+    alert("BYBIT BUTTON CLICKED!");
     
     if (!bybitKey.trim()) {
-      alert("ERROR: API Key field is EMPTY\n\nPlease paste your Bybit API Key");
+      alert("❌ ERROR: API Key is empty");
       setConnectionMessage("❌ ERROR: API Key is empty");
       return;
     }
     
     if (!bybitSecret.trim()) {
-      alert("ERROR: Secret Key field is EMPTY\n\nPlease paste your Bybit Secret Key");
+      alert("❌ ERROR: Secret Key is empty");
       setConnectionMessage("❌ ERROR: Secret Key is empty");
       return;
     }
 
-    alert("BOTH KEYS FOUND!\n\nConnecting now...");
+    alert("✅ BOTH KEYS PROVIDED - Connecting...");
     setIsConnecting(true);
     setConnectionMessage("🔄 CONNECTING TO BYBIT...");
 
@@ -98,7 +99,7 @@ export default function SettingsPage() {
       }));
       setConnectionMessage("✅ BYBIT CONNECTED!");
       setIsConnecting(false);
-      alert("✅ SUCCESS: Connected to Bybit Futures!\n\nAPI keys stored in your browser.");
+      alert("✅ SUCCESS: Connected to Bybit Futures!");
     }, 1000);
   };
 
@@ -159,19 +160,20 @@ export default function SettingsPage() {
                         />
                      </div>
                      
-                     <Button 
+                     <button
                        onClick={handleConnectBinance}
                        disabled={isConnecting || connectedExchange === "binance"}
-                       className={`w-full font-bold text-base h-12 mt-2 ${
+                       className={`w-full font-bold text-base h-12 mt-2 rounded cursor-pointer transition-all ${
                          connectedExchange === "binance" 
                            ? 'bg-green-600 text-white' 
                            : isConnecting
                            ? 'bg-yellow-600 text-white animate-bounce'
                            : 'bg-primary hover:bg-primary/80 text-black'
                        }`}
+                       type="button"
                      >
-                       {isConnecting ? "🔄 CONNECTING..." : connectedExchange === "binance" ? "✅ CONNECTED" : "🚀 CONNECT"}
-                     </Button>
+                       {isConnecting ? "🔄 CONNECTING..." : connectedExchange === "binance" ? "✅ CONNECTED" : "🚀 CONNECT BINANCE"}
+                     </button>
                   </div>
 
                   {/* BYBIT */}
@@ -202,19 +204,20 @@ export default function SettingsPage() {
                         />
                      </div>
                      
-                     <Button 
+                     <button
                        onClick={handleConnectBybit}
                        disabled={isConnecting || connectedExchange === "bybit"}
-                       className={`w-full font-bold text-base h-12 mt-2 ${
+                       className={`w-full font-bold text-base h-12 mt-2 rounded cursor-pointer transition-all ${
                          connectedExchange === "bybit" 
                            ? 'bg-blue-600 text-white' 
                            : isConnecting
                            ? 'bg-yellow-600 text-white animate-bounce'
                            : 'bg-secondary hover:bg-secondary/80'
                        }`}
+                       type="button"
                      >
-                       {isConnecting ? "🔄 CONNECTING..." : connectedExchange === "bybit" ? "✅ CONNECTED" : "🚀 CONNECT"}
-                     </Button>
+                       {isConnecting ? "🔄 CONNECTING..." : connectedExchange === "bybit" ? "✅ CONNECTED" : "🚀 CONNECT BYBIT"}
+                     </button>
                   </div>
                 </div>
              </Card>
