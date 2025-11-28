@@ -9,12 +9,10 @@ import { Shield, Zap, Network, CheckCircle2, AlertCircle, Loader, CheckCheck, X 
 import { useState, useEffect } from "react";
 
 export default function SettingsPage() {
-  const [binanceKey, setBinanceKey] = useState("");
-  const [binanceSecret, setBinanceSecret] = useState("");
   const [bybitKey, setBybitKey] = useState("");
   const [bybitSecret, setBybitSecret] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
-  const [connectedExchange, setConnectedExchange] = useState<"binance" | "bybit" | null>(null);
+  const [connectedExchange, setConnectedExchange] = useState<"bybit" | null>(null);
   const [connectionMessage, setConnectionMessage] = useState("");
 
   useEffect(() => {
@@ -22,8 +20,6 @@ export default function SettingsPage() {
     if (stored) {
       try {
         const creds = JSON.parse(stored);
-        setBinanceKey(creds.binanceKey || "");
-        setBinanceSecret(creds.binanceSecret || "");
         setBybitKey(creds.bybitKey || "");
         setBybitSecret(creds.bybitSecret || "");
         setConnectedExchange(creds.connectedExchange || null);
@@ -32,38 +28,6 @@ export default function SettingsPage() {
       }
     }
   }, []);
-
-  const handleConnectBinance = () => {
-    if (!binanceKey.trim()) {
-      alert("❌ ERROR: API Key is empty");
-      setConnectionMessage("❌ ERROR: API Key is empty");
-      return;
-    }
-    
-    if (!binanceSecret.trim()) {
-      alert("❌ ERROR: Secret Key is empty");
-      setConnectionMessage("❌ ERROR: Secret Key is empty");
-      return;
-    }
-
-    alert("BINANCE BUTTON CLICKED!");
-    setIsConnecting(true);
-    setConnectionMessage("🔄 CONNECTING TO BINANCE...");
-
-    setTimeout(() => {
-      setConnectedExchange("binance");
-      localStorage.setItem("exchange-credentials", JSON.stringify({
-        binanceKey,
-        binanceSecret,
-        bybitKey,
-        bybitSecret,
-        connectedExchange: "binance"
-      }));
-      setConnectionMessage("✅ BINANCE CONNECTED!");
-      setIsConnecting(false);
-      alert("✅ SUCCESS: Connected to Binance Futures!");
-    }, 1000);
-  };
 
   const handleConnectBybit = () => {
     if (!bybitKey.trim()) {

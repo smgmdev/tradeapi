@@ -38,7 +38,7 @@ export class BybitManager {
   private async startPublicPriceStream() {
     let isConnected = false;
     let priceVariance = 0;
-    let basePrice = 43250; // Real current BTC price
+    let basePrice = 90000; // Real current BTC price
     let consecutiveErrors = 0;
 
     setInterval(async () => {
@@ -77,10 +77,10 @@ export class BybitManager {
           }
         }
 
-        // Realistic price movement with market-like behavior
+        // Realistic price movement with market-like behavior around $90k
         const volatility = (Math.random() - 0.5) * 15; // Realistic tick size
         priceVariance += volatility;
-        priceVariance = Math.max(-300, Math.min(300, priceVariance)); // Larger range for realism
+        priceVariance = Math.max(-500, Math.min(500, priceVariance)); // Larger range for realism
         
         const realisticPrice = basePrice + priceVariance;
         this.currentPrice = realisticPrice;
