@@ -7,16 +7,15 @@ interface LogEntry {
   timestamp: string;
   type: "INFO" | "WARN" | "EXEC" | "ALGO";
   message: string;
-  code?: string;
 }
 
 export function TerminalLog() {
   const [logs, setLogs] = useState<LogEntry[]>([
-    { id: 1, timestamp: "16:42:01", type: "INFO", message: "INIT_SEQUENCE_START", code: "SYS_BOOT" },
-    { id: 2, timestamp: "16:42:01", type: "INFO", message: "CONNECTING_WS_STREAM >> wss://fstream.binance.com", code: "NET_IO" },
-    { id: 3, timestamp: "16:42:02", type: "EXEC", message: "AUTH_HANDSHAKE_SUCCESS", code: "SEC_OK" },
-    { id: 4, timestamp: "16:42:05", type: "ALGO", message: "LOADING_MODEL >> NEURAL_SCALPER_V4.bin", code: "AI_LOAD" },
-    { id: 5, timestamp: "16:42:08", type: "ALGO", message: "MODEL_READY >> CONFIDENCE_THRESHOLD: 0.85", code: "AI_RDY" },
+    { id: 1, timestamp: "16:42:01", type: "INFO", message: "INIT_SEQUENCE_START" },
+    { id: 2, timestamp: "16:42:01", type: "INFO", message: "CONNECTING_WS_STREAM" },
+    { id: 3, timestamp: "16:42:02", type: "EXEC", message: "AUTH_HANDSHAKE_SUCCESS" },
+    { id: 4, timestamp: "16:42:05", type: "ALGO", message: "LOADING_MODEL >> NEURAL_SCALPER_V4.bin" },
+    { id: 5, timestamp: "16:42:08", type: "ALGO", message: "MODEL_READY >> CONFIDENCE: 0.85" },
   ]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -25,11 +24,11 @@ export function TerminalLog() {
     const interval = setInterval(() => {
       const types: LogEntry['type'][] = ["INFO", "ALGO", "EXEC", "WARN"];
       const msgs = [
-        "SCANNING_TICKER >> BTCUSDT [VOL_SPIKE_DETECTED]",
-        "CALCULATING_RSI_DIV >> INTERVAL: 5m >> VAL: 24.5",
-        "ORDER_BOOK_IMBALANCE >> BUY_SIDE_PRESSURE >> +12.4%",
-        "CHECKING_RISK_PARAMS >> MARGIN_UTIL: 12.5% >> OK",
-        "AI_INFERENCE >> BULLISH_FLAG_PATTERN >> PROB: 78%"
+        "SCAN >> BTCUSDT [VOL_SPIKE]",
+        "CALC >> RSI_DIV: 24.5",
+        "OB_IMBALANCE >> BUY_SIDE +12%",
+        "RISK_CHECK >> MARGIN: OK",
+        "INFERENCE >> BULLISH_FLAG: 78%"
       ];
       
       const newLog: LogEntry = {
@@ -37,11 +36,10 @@ export function TerminalLog() {
         timestamp: new Date().toLocaleTimeString('en-GB'),
         type: types[Math.floor(Math.random() * types.length)],
         message: msgs[Math.floor(Math.random() * msgs.length)],
-        code: `OP_${Math.floor(Math.random() * 999)}`
       };
       
       setLogs(prev => [...prev.slice(-20), newLog]);
-    }, 2000);
+    }, 1500);
 
     return () => clearInterval(interval);
   }, []);
@@ -62,33 +60,28 @@ export function TerminalLog() {
   };
 
   return (
-    <Card className="terminal-panel h-full flex flex-col overflow-hidden bg-black">
-      <div className="terminal-header">
-        <div className="flex items-center gap-2">
-          <Terminal className="w-3 h-3" />
-          <span>SYSTEM_LOG_STREAM</span>
-        </div>
-        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+    <div className="h-full flex flex-col overflow-hidden bg-black text-[10px] font-mono">
+      <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between bg-card text-xs">
+         <span className="text-muted-foreground font-bold">LIVE_LOGS</span>
+         <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
       </div>
       
       <div 
-        className="flex-1 overflow-y-auto p-2 font-mono text-[11px] leading-tight space-y-1"
+        className="flex-1 overflow-y-auto p-2 space-y-1 bg-black"
         ref={scrollRef}
       >
         {logs.map((log) => (
-          <div key={log.id} className="flex gap-2 hover:bg-white/[0.03] p-0.5">
-            <span className="text-muted-foreground/50 select-none">{log.timestamp}</span>
-            <span className={`w-10 text-right font-bold ${getTypeColor(log.type)}`}>{log.type}</span>
-            <span className="text-muted-foreground/70">|</span>
-            <span className="text-muted-foreground/50 w-16">{log.code}</span>
-            <span className="text-foreground flex-1 truncate">{log.message}</span>
+          <div key={log.id} className="flex gap-2 opacity-90">
+            <span className="text-muted-foreground/40 select-none min-w-[50px]">{log.timestamp}</span>
+            <span className={`min-w-[35px] font-bold ${getTypeColor(log.type)}`}>{log.type}</span>
+            <span className="text-foreground/90 truncate">{log.message}</span>
           </div>
         ))}
-        <div className="flex items-center gap-2 text-primary mt-2 animate-pulse">
+        <div className="flex items-center gap-1 text-primary mt-1 animate-pulse pl-14">
           <ChevronRight className="w-3 h-3" />
-          <span className="w-2 h-4 bg-primary/50 block" />
+          <span className="w-1.5 h-3 bg-primary/50 block" />
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
