@@ -35,10 +35,11 @@ export function MainPage() {
     if (!connected) return;
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/prices`);
+    const endpoint = exchange === "binance" ? "/ws/prices/binance" : "/ws/prices";
+    const ws = new WebSocket(`${protocol}//${window.location.host}${endpoint}`);
 
     ws.onopen = () => {
-      console.log("[Frontend] Connected to real-time price stream");
+      console.log(`[Frontend] Connected to ${exchange.toUpperCase()} real-time price stream`);
       setWsConnected(true);
     };
 
@@ -70,7 +71,7 @@ export function MainPage() {
     };
 
     return () => ws.close();
-  }, [connected]);
+  }, [connected, exchange]);
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
