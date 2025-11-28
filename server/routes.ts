@@ -10,15 +10,15 @@ export async function registerRoutes(
   let exchangeManager: BybitManager | null = null;
   let botRunning = false;
 
-  // Initialize with Bybit only
-  console.log("[API] Initializing Bybit Manager...");
-  exchangeManager = new BybitManager(httpServer);
-  console.log("[API] Waiting for user to provide Bybit API keys in Settings...");
+  // Initialize with Bybit Testnet
+  console.log("[API] Initializing Bybit Manager (TESTNET)...");
+  exchangeManager = new BybitManager(httpServer, true);
+  console.log("[API] Ready to connect Bybit Testnet credentials...");
 
   // Connect to Bybit with API keys
   app.post("/api/exchange/connect", async (req, res) => {
     try {
-      const { apiKey, apiSecret } = req.body;
+      const { apiKey, apiSecret, isTestnet = true } = req.body;
 
       if (!apiKey || !apiSecret) {
         return res.status(400).json({ error: "Missing apiKey or apiSecret" });
@@ -26,15 +26,17 @@ export async function registerRoutes(
 
       // Use existing manager, just connect with new credentials
       if (!exchangeManager) {
-        exchangeManager = new BybitManager(httpServer);
+        exchangeManager = new BybitManager(httpServer, isTestnet);
       }
       
       try {
-        const result = await exchangeManager.connect(apiKey, apiSecret);
+        const result = await exchangeManager.connect(apiKey, apiSecret, isTestnet);
+        const env = isTestnet ? "BYBIT TESTNET" : "BYBIT LIVE";
         res.json({
           status: "CONNECTED",
           exchange: "bybit",
-          message: "Successfully connected to Bybit Futures",
+          environment: isTestnet ? "TESTNET" : "LIVE",
+          message: `Successfully connected to ${env}`,
           accountType: result.account,
           balances: result.balances,
         });

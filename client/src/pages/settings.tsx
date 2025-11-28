@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectedExchange, setConnectedExchange] = useState<"bybit" | null>(null);
   const [connectionMessage, setConnectionMessage] = useState("");
+  const [useTestnet, setUseTestnet] = useState(true);
 
   useEffect(() => {
     const stored = localStorage.getItem("exchange-credentials");
@@ -22,6 +23,7 @@ export default function SettingsPage() {
         setBybitKey(creds.bybitKey || "");
         setBybitSecret(creds.bybitSecret || "");
         setConnectedExchange(creds.connectedExchange || null);
+        setUseTestnet(creds.useTestnet !== false); // Default to testnet
       } catch (e) {
         console.error("Failed to load credentials:", e);
       }
@@ -49,6 +51,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           apiKey: bybitKey,
           apiSecret: bybitSecret,
+          isTestnet: useTestnet,
         }),
       });
 
@@ -61,9 +64,11 @@ export default function SettingsPage() {
             bybitKey,
             bybitSecret,
             connectedExchange: "bybit",
+            useTestnet,
           })
         );
-        setConnectionMessage("✅ BYBIT CONNECTED! Ready to trade.");
+        const mode = useTestnet ? "TESTNET" : "LIVE";
+        setConnectionMessage(`✅ BYBIT ${mode} CONNECTED! Ready to trade.`);
         setIsConnecting(false);
       } else {
         const error = await response.json();
@@ -115,9 +120,9 @@ export default function SettingsPage() {
               <CheckCircle2 className="w-5 h-5 text-green-500" />
               <div>
                 <div className="font-bold font-mono text-green-400">
-                  ✓ CONNECTED TO BYBIT
+                  ✓ CONNECTED TO BYBIT {useTestnet ? "TESTNET" : "LIVE"}
                 </div>
-                <div className="text-xs text-green-400/70 mt-1">API keys are stored securely</div>
+                <div className="text-xs text-green-400/70 mt-1">{useTestnet ? "📊 Testnet mode - paper trading" : "⚠️ Live trading - real money"}</div>
               </div>
             </div>
             <button
@@ -187,13 +192,26 @@ export default function SettingsPage() {
                   />
                 </div>
 
+                <div className="flex items-center gap-3 p-3 rounded bg-purple-500/10 border border-purple-500/30">
+                  <Switch
+                    checked={useTestnet}
+                    onCheckedChange={setUseTestnet}
+                    disabled={connectedExchange === "bybit"}
+                  />
+                  <Label className="text-xs font-mono cursor-pointer">
+                    {useTestnet ? "📊 TESTNET MODE (Paper Trading)" : "⚠️ LIVE MODE (Real Money)"}
+                  </Label>
+                </div>
+
                 <div className="p-3 rounded bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200">
                   <div className="font-bold mb-1">How to get your API keys:</div>
                   <ol className="list-decimal list-inside space-y-1 text-blue-200/80">
-                    <li>Go to Bybit Account Settings</li>
+                    <li>For Testnet: Go to <strong>testnet.bybit.com</strong></li>
+                    <li>For Live: Go to <strong>bybit.com</strong></li>
                     <li>Enable "API Key Permissions"</li>
                     <li>Create new API key with Futures trading enabled</li>
                     <li>Copy and paste the keys above</li>
+                    <li>Toggle Testnet/Live mode before connecting</li>
                   </ol>
                 </div>
 
@@ -212,8 +230,8 @@ export default function SettingsPage() {
                   {isConnecting
                     ? "🔄 CONNECTING..."
                     : connectedExchange === "bybit"
-                    ? "✅ CONNECTED"
-                    : "🚀 CONNECT BYBIT"}
+                    ? `✅ CONNECTED (${useTestnet ? "TESTNET" : "LIVE"})`
+                    : `🚀 CONNECT BYBIT ${useTestnet ? "TESTNET" : "LIVE"}`}
                 </button>
               </div>
             </Card>

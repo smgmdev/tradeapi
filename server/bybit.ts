@@ -9,8 +9,10 @@ export class BybitManager {
   private apiSecret: string = "";
   private priceSubscribers: Set<WebSocket> = new Set();
   private currentPrice: number = 34284.52;
+  private isTestnet: boolean = false;
 
-  constructor(httpServer: HTTPServer) {
+  constructor(httpServer: HTTPServer, isTestnet: boolean = false) {
+    this.isTestnet = isTestnet;
     this.wss = new WebSocketServer({ server: httpServer, path: "/ws/prices" });
     
     this.wss.on("connection", (ws: WebSocket) => {
@@ -98,20 +100,23 @@ export class BybitManager {
     }, 1000);
   }
 
-  async connect(apiKey: string, apiSecret: string) {
+  async connect(apiKey: string, apiSecret: string, isTestnet: boolean = false) {
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
+    this.isTestnet = isTestnet;
 
     try {
       this.client = new RestClientV5({
         key: apiKey,
         secret: apiSecret,
+        testnet: isTestnet,
       });
 
       // Try to test connection but don't fail if it can't reach Bybit
       try {
         const accountInfo = await this.client.getAccountInfo();
-        console.log("[Bybit] ✓ Connected successfully");
+        const env = isTestnet ? "TESTNET" : "LIVE";
+        console.log(`[Bybit] ✓ Connected successfully to ${env}`);
         console.log(`[Bybit] Account Type: FUTURES | Wallet Balance: ${accountInfo.result?.wallet?.[0]?.wallet_balance || "N/A"}`);
       } catch (testError: any) {
         console.warn("[Bybit] Connection test failed but keys accepted:", testError.message);
